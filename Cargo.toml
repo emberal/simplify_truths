@@ -1,0 +1,8 @@
+[package]
+name = "simplify_truths"
+version = "0.1.0"
+edition = "2021"
+authors = ["Martin Berg Alstad"]
+
+[dependencies]
+nom = "7.1.3"
