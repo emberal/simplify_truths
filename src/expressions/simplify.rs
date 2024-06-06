@@ -2,6 +2,7 @@ use crate::expressions::expression::{Expression, OppositeEq};
 use crate::expressions::operator::BinaryOperator;
 
 pub trait Simplify {
+    fn simplify(&self) -> Self;
     fn elimination_of_implication(&self) -> Self;
     fn double_negation_elimination(&self) -> Self;
     fn de_morgans_laws(&self) -> Self;
@@ -12,6 +13,16 @@ pub trait Simplify {
 }
 
 impl Simplify for Expression {
+    // TODO test and define order of operations
+    fn simplify(&self) -> Self {
+        self.elimination_of_implication()
+            .de_morgans_laws()
+            .absorption_law()
+            // .associative_law()
+            .distribution_law()
+            .double_negation_elimination()
+        // .commutative_law()
+    }
     /// Eliminate the implication operator from the expression.
     /// This is done by replacing `a ➔ b` with `¬a ⋁ b`.
     fn elimination_of_implication(&self) -> Self {
@@ -194,7 +205,7 @@ impl Simplify for Expression {
                 let right = right.distribution_law();
                 binary!(left, *operator, right)
             }
-            Expression::Not(expr) => expr.distribution_law(),
+            Expression::Not(expr) => not!(expr.distribution_law()),
             atomic => atomic.clone(),
         }
     }
@@ -207,6 +218,18 @@ impl Simplify for Expression {
 #[cfg(test)]
 mod tests {
     use crate::expressions::simplify::Simplify;
+
+    #[test]
+    fn test_simplify() {
+        let expression = eval!("a" => "b").simplify();
+        assert_eq!(expression, or!(not!(atomic!("a")), atomic!("b")));
+    }
+
+    #[test]
+    fn test_implication_and_de_morgans() {
+        let expression = implies!(and!(not!(atomic!("a")), atomic!("b")), atomic!("c")).simplify();
+        assert_eq!(expression, or!(or!(atomic!("a"), not!(atomic!("b"))), atomic!("c")));
+    }
 
     #[test]
     fn test_elimination_of_implication() {
@@ -348,5 +371,11 @@ mod tests {
     fn test_distributive_law_or() {
         let expression = or!(atomic!("a"), and!(atomic!("b"), atomic!("c"))).distribution_law();
         assert_eq!(expression, and!(or!(atomic!("a"), atomic!("b")), or!(atomic!("a"), atomic!("c"))));
+    }
+
+    #[test]
+    fn test_distributive_law_nested_not() {
+        let expression = and!(atomic!("a"), not!(or!(atomic!("b"), atomic!("c")))).distribution_law();
+        assert_eq!(expression, and!(atomic!("a"), not!(or!(atomic!("b"), atomic!("c")))))
     }
 }

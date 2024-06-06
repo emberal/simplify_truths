@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use serde::{Deserialize, Serialize};
 
 use crate::expressions::operator::BinaryOperator;
 use crate::parsing::expression_parser::parse_expression;
@@ -7,7 +8,8 @@ pub trait OppositeEq {
     fn opposite_eq(&self, other: &Self) -> bool;
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum Expression {
     Not(Box<Expression>),
     Binary(Box<Expression>, BinaryOperator, Box<Expression>),
@@ -40,8 +42,8 @@ impl OppositeEq for Expression {
     fn opposite_eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Expression::Not(_), Expression::Not(_)) => false,
-            (Expression::Not(_), _) => true,
-            (_, Expression::Not(_)) => true,
+            (Expression::Not(left), right) => left.as_ref() == right,
+            (left, Expression::Not(right)) => left == right.as_ref(),
             _ => false,
         }
     }

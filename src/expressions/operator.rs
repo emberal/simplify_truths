@@ -1,17 +1,9 @@
-#[derive(Debug, Copy, Clone, PartialEq)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Copy, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BinaryOperator {
     Implication,
     Or,
     And,
 }
-
-impl From<BinaryOperator> for &str {
-    fn from(op: BinaryOperator) -> Self {
-        match op {
-            BinaryOperator::Implication => "=>",
-            BinaryOperator::Or => "|",
-            BinaryOperator::And => "&",
-        }
-    }
-}
-

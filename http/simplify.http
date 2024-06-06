@@ -1,0 +1,29 @@
+### GET Atomic Expression
+GET {{url}}/simplify/A
+
+### GET And Expression
+< {%
+    import {expression} from './common.js';
+
+    expression("A & B")
+%}
+GET {{url}}/simplify/{{expression}}
+
+### GET Or Expression
+< {%
+    import {expression} from "./common";
+
+    expression("A | B")
+%}
+GET {{url}}/simplify/{{expression}}
+
+### GET Not Expression
+GET {{url}}/simplify/!A
+
+### GET Implication Expression
+< {%
+    import {expression} from "./common";
+
+    expression("A => B")
+%}
+GET {{url}}/simplify/{{expression}}
