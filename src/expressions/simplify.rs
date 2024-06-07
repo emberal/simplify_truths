@@ -28,12 +28,12 @@ impl Simplify for Expression {
     fn elimination_of_implication(&self) -> Self {
         match self {
             Expression::Not(expr) => not!(expr.elimination_of_implication()),
-            Expression::Binary(left, BinaryOperator::Implication, right) => {
+            Expression::Binary { left, operator: BinaryOperator::Implication, right } => {
                 let left = left.elimination_of_implication();
                 let right = right.elimination_of_implication();
                 or!(not!(left), right)
             }
-            Expression::Binary(left, operator, right) => {
+            Expression::Binary { left, operator, right } => {
                 let left = left.elimination_of_implication();
                 let right = right.elimination_of_implication();
                 binary!(left, *operator, right)
@@ -54,7 +54,7 @@ impl Simplify for Expression {
                     not!(expr.double_negation_elimination())
                 }
             }
-            Expression::Binary(left, operator, right) => {
+            Expression::Binary { left, operator, right } => {
                 let left = left.double_negation_elimination();
                 let right = right.double_negation_elimination();
                 binary!(left, *operator, right)
@@ -67,13 +67,13 @@ impl Simplify for Expression {
         match self {
             Expression::Not(expr) => {
                 match *expr.clone() {
-                    Expression::Binary(left, BinaryOperator::And, right) => {
+                    Expression::Binary { left, operator: BinaryOperator::And, right } => {
                         // TODO unnecessary cloning calls to de_morgans_laws?
                         let left = not!(left.de_morgans_laws());
                         let right = not!(right.de_morgans_laws());
                         or!(left, right).de_morgans_laws()
                     }
-                    Expression::Binary(left, BinaryOperator::Or, right) => {
+                    Expression::Binary { left, operator: BinaryOperator::Or, right } => {
                         let left = not!(left.de_morgans_laws());
                         let right = not!(right.de_morgans_laws());
                         and!(left, right).de_morgans_laws()
@@ -81,7 +81,7 @@ impl Simplify for Expression {
                     _ => not!(expr.de_morgans_laws()),
                 }
             }
-            Expression::Binary(left, operator, right) => {
+            Expression::Binary { left, operator, right } => {
                 let left = left.de_morgans_laws();
                 let right = right.de_morgans_laws();
                 binary!(left, *operator, right)
@@ -93,10 +93,10 @@ impl Simplify for Expression {
     // TODO deduplicate code
     fn absorption_law(&self) -> Self {
         match self {
-            Expression::Binary(left, BinaryOperator::And, right) => {
+            Expression::Binary { left, operator: BinaryOperator::And, right } => {
                 let (left_ref, right_ref) = (left.as_ref(), right.as_ref());
                 match (left_ref, right_ref) {
-                    (_, Expression::Binary(right_left, BinaryOperator::Or, right_right)) => {
+                    (_, Expression::Binary { left: right_left, operator: BinaryOperator::Or, right: right_right }) => {
                         if left_ref == right_left.as_ref() || left_ref == right_right.as_ref() {
                             return left.absorption_law();
                         } else if right_left.is_atomic() && right_right.is_atomic() && left.opposite_eq(right_left) {
@@ -108,7 +108,7 @@ impl Simplify for Expression {
                         }
                         and!(left.absorption_law(), right.absorption_law())
                     }
-                    (Expression::Binary(left_left, BinaryOperator::Or, left_right), _) => {
+                    (Expression::Binary { left: left_left, operator: BinaryOperator::Or, right: left_right }, _) => {
                         if right_ref == left_left.as_ref() || right_ref == left_right.as_ref() {
                             return right.absorption_law();
                         } else if left_left.is_atomic() && left_right.is_atomic() && right.opposite_eq(left_left) {
@@ -123,10 +123,10 @@ impl Simplify for Expression {
                     (left, right) => and!(left.absorption_law(), right.absorption_law())
                 }
             }
-            Expression::Binary(left, BinaryOperator::Or, right) => {
+            Expression::Binary { left, operator: BinaryOperator::Or, right } => {
                 let (left_ref, right_ref) = (left.as_ref(), right.as_ref());
                 match (left_ref, right_ref) {
-                    (_, Expression::Binary(right_left, BinaryOperator::And, right_right)) => {
+                    (_, Expression::Binary { left: right_left, operator: BinaryOperator::And, right: right_right }) => {
                         if left_ref == right_left.as_ref() || left_ref == right_right.as_ref() {
                             return left.absorption_law();
                         } else if right_left.is_atomic() && right_right.is_atomic() && left.opposite_eq(right_left) {
@@ -138,7 +138,7 @@ impl Simplify for Expression {
                         }
                         or!(left.absorption_law(), right.absorption_law())
                     }
-                    (Expression::Binary(left_left, BinaryOperator::And, left_right), _) => {
+                    (Expression::Binary { left: left_left, operator: BinaryOperator::And, right: left_right }, _) => {
                         if right_ref == left_left.as_ref() || right_ref == left_right.as_ref() {
                             return right.absorption_law();
                         } else if left_left.is_atomic() && left_right.is_atomic() && right.opposite_eq(left_left) {
@@ -153,7 +153,7 @@ impl Simplify for Expression {
                     (left, right) => or!(left.absorption_law(), right.absorption_law())
                 }
             }
-            Expression::Binary(left, operator, right) => {
+            Expression::Binary { left, operator, right } => {
                 let left = left.absorption_law();
                 let right = right.absorption_law();
                 binary!(left, *operator, right)
@@ -170,14 +170,14 @@ impl Simplify for Expression {
     // TODO deduplicate code
     fn distribution_law(&self) -> Self {
         match self {
-            Expression::Binary(left, BinaryOperator::And, right) => {
+            Expression::Binary { left, operator: BinaryOperator::And, right } => {
                 match (left.as_ref(), right.as_ref()) {
-                    (Expression::Atomic(_), Expression::Binary(right_left, BinaryOperator::Or, right_right)) => {
+                    (Expression::Atomic(_), Expression::Binary { left: right_left, operator: BinaryOperator::Or, right: right_right }) => {
                         let right_left = right_left.distribution_law();
                         let right_right = right_right.distribution_law();
                         or!(and!(*left.clone(), right_left), and!(*left.clone(), right_right))
                     }
-                    (Expression::Binary(left_left, BinaryOperator::Or, left_right), Expression::Atomic(_)) => {
+                    (Expression::Binary { left: left_left, operator: BinaryOperator::Or, right: left_right }, Expression::Atomic(_)) => {
                         let left_left = left_left.distribution_law();
                         let left_right = left_right.distribution_law();
                         or!(and!(left_left, *right.clone()), and!(left_right, *right.clone()))
@@ -185,14 +185,14 @@ impl Simplify for Expression {
                     (left, right) => and!(left.distribution_law(), right.distribution_law())
                 }
             }
-            Expression::Binary(left, BinaryOperator::Or, right) => {
+            Expression::Binary { left, operator: BinaryOperator::Or, right } => {
                 match (left.as_ref(), right.as_ref()) {
-                    (Expression::Atomic(_), Expression::Binary(right_left, BinaryOperator::And, right_right)) => {
+                    (Expression::Atomic(_), Expression::Binary { left: right_left, operator: BinaryOperator::And, right: right_right }) => {
                         let right_left = right_left.distribution_law();
                         let right_right = right_right.distribution_law();
                         and!(or!(*left.clone(), right_left), or!(*left.clone(), right_right))
                     }
-                    (Expression::Binary(left_left, BinaryOperator::And, left_right), Expression::Atomic(_)) => {
+                    (Expression::Binary { left: left_left, operator: BinaryOperator::And, right: left_right }, Expression::Atomic(_)) => {
                         let left_left = left_left.distribution_law();
                         let left_right = left_right.distribution_law();
                         and!(or!(left_left, *right.clone()), or!(left_right, *right.clone()))
@@ -200,7 +200,7 @@ impl Simplify for Expression {
                     (left, right) => or!(left.distribution_law(), right.distribution_law())
                 }
             }
-            Expression::Binary(left, operator, right) => {
+            Expression::Binary { left, operator, right } => {
                 let left = left.distribution_law();
                 let right = right.distribution_law();
                 binary!(left, *operator, right)

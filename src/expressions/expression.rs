@@ -12,7 +12,7 @@ pub trait OppositeEq {
 #[serde(rename_all = "camelCase")]
 pub enum Expression {
     Not(Box<Expression>),
-    Binary(Box<Expression>, BinaryOperator, Box<Expression>),
+    Binary { left: Box<Expression>, operator: BinaryOperator, right: Box<Expression> },
     Atomic(String),
 }
 
@@ -20,7 +20,7 @@ impl Expression {
     pub fn is_atomic(&self) -> bool {
         match self {
             Expression::Not(expr) => expr.is_atomic(),
-            Expression::Binary(_, _, _) => false,
+            Expression::Binary { .. } => false,
             Expression::Atomic(_) => true
         }
     }
@@ -32,7 +32,7 @@ impl Expression {
     pub fn exists(&self, atomic_value: &str) -> bool {
         match self {
             Expression::Not(expr) => expr.exists(atomic_value),
-            Expression::Binary(left, _, right) => left.exists(atomic_value) || right.exists(atomic_value),
+            Expression::Binary { left, right, .. } => left.exists(atomic_value) || right.exists(atomic_value),
             Expression::Atomic(value) => value == atomic_value,
         }
     }
@@ -69,14 +69,14 @@ impl Display for Expression {
         match self {
             Expression::Not(expr) if expr.is_atomic() => write!(f, "¬{expr}"),
             Expression::Not(expr) => write!(f, "¬({expr})"),
-            Expression::Binary(left, BinaryOperator::And, right) => {
+            Expression::Binary { left, operator: BinaryOperator::And, right } => {
                 write!(f, "{left} ⋀ {right}")
             }
             // TODO do not use parentheses on root level or if several operators are on the same level
-            Expression::Binary(left, BinaryOperator::Or, right) => {
+            Expression::Binary { left, operator: BinaryOperator::Or, right } => {
                 write!(f, "({left} ⋁ {right})")
             }
-            Expression::Binary(left, BinaryOperator::Implication, right) => {
+            Expression::Binary { left, operator: BinaryOperator::Implication, right } => {
                 write!(f, "{left} ➔ {right}")
             }
             Expression::Atomic(value) => write!(f, "{value}"),

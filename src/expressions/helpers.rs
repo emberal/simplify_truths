@@ -21,8 +21,8 @@ macro_rules! implies {
 
 #[macro_export]
 macro_rules! binary {
-    ($left:expr, $op:expr, $right:expr) => {
-        $crate::expressions::expression::Expression::Binary(Box::new($left), $op, Box::new($right))
+    ($left:expr, $operator:expr, $right:expr) => {
+        $crate::expressions::expression::Expression::Binary { left: Box::new($left), operator: $operator, right: Box::new($right) }
     };
 }
 
@@ -78,16 +78,16 @@ mod tests {
 
     #[test]
     fn eval_and() {
-        assert_eq!(eval!("a" && "b"), Binary(Box::new(Atomic("a".to_string())), And, Box::new(Atomic("b".to_string()))));
+        assert_eq!(eval!("a" && "b"), Binary { left: Box::new(Atomic("a".to_string())), operator: And, right: Box::new(Atomic("b".to_string())) });
     }
 
     #[test]
     fn eval_or() {
-        assert_eq!(eval!("a" || "b"), Binary(Box::new(Atomic("a".to_string())), Or, Box::new(Atomic("b".to_string()))));
+        assert_eq!(eval!("a" || "b"), Binary { left: Box::new(Atomic("a".to_string())), operator: Or, right: Box::new(Atomic("b".to_string())) });
     }
 
     #[test]
     fn eval_implies() {
-        assert_eq!(eval!("a" => "b"), Binary(Box::new(Atomic("a".to_string())), Implication, Box::new(Atomic("b".to_string()))));
+        assert_eq!(eval!("a" => "b"), Binary { left: Box::new(Atomic("a".to_string())), operator: Implication, right: Box::new(Atomic("b".to_string())) });
     }
 }

@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use tokio::net::{TcpListener, ToSocketAddrs};
+use tokio::net::TcpListener;
 
 use crate::routing::{simplify, table};
 

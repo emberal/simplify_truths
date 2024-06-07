@@ -1,39 +1,27 @@
-import "@typespec/openapi3";
-using TypeSpec.OpenAPI;
+import "@typespec/http";
+import "./models.tsp";
+using TypeSpec.Http;
+using Models;
 
-enum BinaryOperator {
-    AND,
-    OR,
-    IMPLICATION
-}
-
-model ExpressionNot {
-    not: Expression;
-}
-
-// TODO tuple type, possible in OpenAPI 3.1, but unsupported in typespec
-model ExpressionBinary {
-    operator: BinaryOperator;
-    left: Expression;
-    right: Expression;
-}
-
-model ExpressionAtomic {
-    atomic: string;
-}
-
-@oneOf
-union Expression {
-    ExpressionNot;
-    ExpressionBinary;
-    ExpressionAtomic;
-}
-
-model SimplifyResponse {
+@service({
+    title: "Simplify Truth Expressions",
+})
+namespace Simplify {
+    model SimplifyResponse {
     before: string;
     after: string;
-    orderOfOperations: string[];
+    orderOfOperations?: string[] = [];
     expression: Expression;
 }
 
-op simplify(): SimplifyResponse;
+model SimplifyOptions {
+    lang: "en" | "nb" = "en";
+    simplify: boolean = true;
+    caseSensitive: boolean = false;
+}
+
+op simplify(
+    @path exp: string,
+    @query query?: SimplifyOptions
+): SimplifyResponse;
+}

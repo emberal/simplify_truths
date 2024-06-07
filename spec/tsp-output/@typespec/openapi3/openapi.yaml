@@ -1,13 +1,23 @@
 openapi: 3.0.0
 info:
-  title: (title)
+  title: Simplify Truth Expressions
   version: 0.0.0
 tags: []
 paths:
-  /:
+  /{exp}:
     get:
       operationId: simplify
-      parameters: []
+      parameters:
+        - name: exp
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: query
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/SimplifyOptions'
       responses:
         '200':
           description: The request has succeeded.
@@ -17,50 +27,68 @@ paths:
                 $ref: '#/components/schemas/SimplifyResponse'
 components:
   schemas:
-    BinaryOperator:
+    Expression:
+      oneOf:
+        - $ref: '#/components/schemas/Models.ExpressionNot'
+        - $ref: '#/components/schemas/Models.ExpressionBinary'
+        - $ref: '#/components/schemas/Models.ExpressionAtomic'
+    Models.BinaryOperator:
       type: string
       enum:
         - AND
         - OR
         - IMPLICATION
-    Expression:
-      oneOf:
-        - $ref: '#/components/schemas/ExpressionNot'
-        - $ref: '#/components/schemas/ExpressionBinary'
-        - $ref: '#/components/schemas/ExpressionAtomic'
-    ExpressionAtomic:
+    Models.ExpressionAtomic:
       type: object
       required:
         - atomic
       properties:
         atomic:
           type: string
-    ExpressionBinary:
+    Models.ExpressionBinary:
       type: object
       required:
-        - operator
         - left
+        - operator
         - right
       properties:
-        operator:
-          $ref: '#/components/schemas/BinaryOperator'
         left:
           $ref: '#/components/schemas/Expression'
+        operator:
+          $ref: '#/components/schemas/Models.BinaryOperator'
         right:
           $ref: '#/components/schemas/Expression'
-    ExpressionNot:
+    Models.ExpressionNot:
       type: object
       required:
         - not
       properties:
         not:
           $ref: '#/components/schemas/Expression'
+    SimplifyOptions:
+      type: object
+      required:
+        - lang
+        - simplify
+        - caseSensitive
+      properties:
+        lang:
+          type: string
+          enum:
+            - en
+            - nb
+          default: en
+        simplify:
+          type: boolean
+          default: true
+        caseSensitive:
+          type: boolean
+          default: false
     SimplifyResponse:
       type: object
       required:
         - before
         - after
-        - orderOfOperations
         - expression
       properties:
         before:
@@ -71,5 +99,6 @@ components:
           type: array
           items:
             type: string
+          default: []
         expression:
           $ref: '#/components/schemas/Expression'
