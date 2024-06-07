@@ -1,12 +1,12 @@
 openapi: 3.0.0
 info:
   title: Simplify Truth Expressions
-  version: 0.0.0
+  version: v2
 tags: []
 paths:
-  /{exp}:
+  /simplify/{exp}:
     get:
-      operationId: simplify
+      operationId: Simplify_simplify
       parameters:
         - name: exp
           in: path
