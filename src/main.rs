@@ -1,14 +1,19 @@
-use tokio::net::TcpListener;
+use std::net::SocketAddr;
+
+use tokio::net::{TcpListener, ToSocketAddrs};
+
 use crate::routing::{simplify, table};
 
 mod expressions;
 mod parsing;
 mod routing;
 mod language;
+mod config;
 
 #[tokio::main]
 async fn main() {
-    let listener = TcpListener::bind("127.0.0.1:8000")
+    let addr = SocketAddr::from(([127, 0, 0, 1], config::PORT));
+    let listener = TcpListener::bind(&addr)
         .await
         .unwrap();
 

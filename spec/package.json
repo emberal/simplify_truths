@@ -1,0 +1,10 @@
+{
+  "name": "main",
+  "version": "0.1.0",
+  "type": "module",
+  "dependencies": {
+    "@typespec/compiler": "latest",
+    "@typespec/openapi3": "^0.56.0"
+  },
+  "private": true
+}

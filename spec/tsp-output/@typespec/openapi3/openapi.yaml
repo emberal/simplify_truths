@@ -1,0 +1,75 @@
+openapi: 3.0.0
+info:
+  title: (title)
+  version: 0.0.0
+tags: []
+paths:
+  /:
+    get:
+      operationId: simplify
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimplifyResponse'
+components:
+  schemas:
+    BinaryOperator:
+      type: string
+      enum:
+        - AND
+        - OR
+        - IMPLICATION
+    Expression:
+      oneOf:
+        - $ref: '#/components/schemas/ExpressionNot'
+        - $ref: '#/components/schemas/ExpressionBinary'
+        - $ref: '#/components/schemas/ExpressionAtomic'
+    ExpressionAtomic:
+      type: object
+      required:
+        - atomic
+      properties:
+        atomic:
+          type: string
+    ExpressionBinary:
+      type: object
+      required:
+        - operator
+        - left
+        - right
+      properties:
+        operator:
+          $ref: '#/components/schemas/BinaryOperator'
+        left:
+          $ref: '#/components/schemas/Expression'
+        right:
+          $ref: '#/components/schemas/Expression'
+    ExpressionNot:
+      type: object
+      required:
+        - not
+      properties:
+        not:
+          $ref: '#/components/schemas/Expression'
+    SimplifyResponse:
+      type: object
+      required:
+        - before
+        - after
+        - orderOfOperations
+        - expression
+      properties:
+        before:
+          type: string
+        after:
+          type: string
+        orderOfOperations:
+          type: array
+          items:
+            type: string
+        expression:
+          $ref: '#/components/schemas/Expression'
