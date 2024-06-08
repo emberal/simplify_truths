@@ -42,13 +42,16 @@ struct SimplifyResponse {
 
 // TODO
 async fn simplify(Path(path): Path<String>, query: Query<QueryOptions>, accept_language: Option<AcceptLanguage>) -> Response {
-    if let Ok(expression) = Expression::try_from(path.as_str()) {
-        let simplified = expression.simplify();
+    if let Ok(mut expression) = Expression::try_from(path.as_str()) {
+        let before = expression.to_string();
+        if query.simplify {
+            expression = expression.simplify();
+        }
         Json(SimplifyResponse {
-            before: expression.to_string(),
-            after: simplified.to_string(),
+            before,
+            after: expression.to_string(),
             order_of_operations: vec![], // TODO
-            expression: simplified,
+            expression,
         }).into_response()
     } else {
         (StatusCode::BAD_REQUEST, "Invalid expression").into_response()

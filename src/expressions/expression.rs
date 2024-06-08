@@ -25,15 +25,31 @@ impl Expression {
         }
     }
 
-    pub fn is_not(&self) -> bool {
-        matches!(self, Expression::Not(_))
-    }
-
     pub fn exists(&self, atomic_value: &str) -> bool {
         match self {
             Expression::Not(expr) => expr.exists(atomic_value),
             Expression::Binary { left, right, .. } => left.exists(atomic_value) || right.exists(atomic_value),
             Expression::Atomic(value) => value == atomic_value,
+        }
+    }
+
+    pub fn count_distinct(&self) -> usize {
+        self.count_distinct_with_visited(vec![].as_mut())
+    }
+
+    fn count_distinct_with_visited(&self, visited: &mut Vec<String>) -> usize {
+        match self {
+            Expression::Not(expr) => expr.count_distinct_with_visited(visited),
+            Expression::Binary { left, right, .. } =>
+                left.count_distinct_with_visited(visited) + right.count_distinct_with_visited(visited),
+            Expression::Atomic(value) => {
+                if visited.contains(value) {
+                    0
+                } else {
+                    visited.push(value.clone());
+                    1
+                }
+            }
         }
     }
 }
@@ -88,6 +104,30 @@ impl Display for Expression {
 mod tests {
     use crate::{and, atomic, implies, not, or};
     use crate::expressions::expression::Expression;
+
+    #[test]
+    fn test_count_distinct() {
+        let expression = and!(
+            atomic!("a"),
+            or!(
+                atomic!("b"),
+                atomic!("c")
+            )
+        );
+        assert_eq!(expression.count_distinct(), 3);
+    }
+
+    #[test]
+    fn test_count_distinct_duplicates() {
+        let expression = and!(
+            atomic!("a"),
+            or!(
+                atomic!("b"),
+                atomic!("a")
+            )
+        );
+        assert_eq!(expression.count_distinct(), 2);
+    }
 
     #[test]
     fn test_expression_a_and_not_b_display() {
