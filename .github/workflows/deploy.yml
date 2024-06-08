@@ -26,3 +26,19 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/simplify-truths-api:latest
+
+  pull_from_registry:
+    name: Pull Docker image from Docker Hub
+    needs: push_to_registry
+    runs-on: self-hosted
+
+    steps:
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+      - name: Pull
+        run: docker pull ${{ secrets.DOCKERHUB_USERNAME }}/simplify-truths-api:latest
+      - name: Install
+        run: sudo install -o pi -g pi -m 755 simplify-truths-api /home/pi/simplify-truths-api
