@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::expressions::expression::Expression;
-use crate::utils::array::Distinct;
+use crate::matrix;
+use crate::utils::array::{alternating_array, Distinct};
 
 type TruthMatrix = Vec<Vec<bool>>;
 
@@ -76,25 +77,59 @@ impl TruthTable {
     }
 
     fn generate_truth_matrix(expression: &Expression) -> TruthMatrix {
+        let count = expression.count_distinct();
+        if count == 0 {
+            return vec![];
+        }
+        let helper = Self::helper_matrix(count);
+        let truths = Self::generate_truth_table(&helper, expression);
         todo!()
     }
 
     fn helper_matrix(number_of_atomics: usize) -> TruthMatrix {
-        todo!("Create a matrix with 2^number_of_atomics rows and number_of_atomics columns")
+        let len = 2usize.pow(number_of_atomics as u32);
+        let mut change_index = len / 2;
+        let mut rows: Vec<Vec<bool>> = matrix![false; 0 => number_of_atomics];
+        for row in &mut rows {
+            *row = alternating_array(len, change_index);
+            change_index /= 2;
+        }
+        rows
     }
 
-    fn resolve_expression(expression: &Expression, row: &[bool]) -> bool {
+    // TODO store the expressions along with their values in a list tree structure
+    // For each node. Their left child is index * 2 + 1 and right child is index * 2 + 2
+    // Ex: 0 -> (1, 2), 1 -> (3, 4), 2 -> (5, 6)
+    fn generate_truth_table<'a>(helper: &TruthMatrix, expression: &'a Expression) -> Vec<Option<(&'a Expression, bool)>> {
+        todo!("Generate the truth table for the given expression")
+    }
+
+    fn resolve_expression(expression: &Expression, truths: &[Option<(&Expression, bool)>]) -> bool {
         todo!("Resolve the expression with the given row of booleans")
-    }
-
-    fn find_expression(expression: Expression, expressions: &[Expression]) -> Option<usize> {
-        todo!("Find the expression in the truth table and return index")
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::matrix;
+
     use super::*;
+
+    #[test]
+    fn test_helper_matrix_3() {
+        let helper = TruthTable::helper_matrix(3);
+        assert_eq!(helper, matrix![
+            true, true, true, true, false, false, false, false;
+            true, true, false, false, true, true, false, false;
+            true, false, true, false, true, false, true, false
+        ]);
+    }
+
+    #[test]
+    fn test_helper_matrix_1() {
+        let helper = TruthTable::helper_matrix(1);
+        assert_eq!(helper, matrix![true, false]);
+    }
 
     #[test]
     fn test_atomic_expression() {
