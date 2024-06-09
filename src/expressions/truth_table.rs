@@ -82,7 +82,9 @@ impl TruthTable {
             return vec![];
         }
         let helper = Self::helper_matrix(count);
-        let truths = Self::generate_truth_table(&helper, expression);
+        for row in &helper {
+            let truths = Self::generate_truth_table(row, expression);
+        }
         todo!()
     }
 
@@ -100,11 +102,29 @@ impl TruthTable {
     // TODO store the expressions along with their values in a list tree structure
     // For each node. Their left child is index * 2 + 1 and right child is index * 2 + 2
     // Ex: 0 -> (1, 2), 1 -> (3, 4), 2 -> (5, 6)
-    fn generate_truth_table<'a>(helper: &TruthMatrix, expression: &'a Expression) -> Vec<Option<(&'a Expression, bool)>> {
-        todo!("Generate the truth table for the given expression")
+    fn generate_truth_table<'a>(truth_row: &[bool], expression: &'a Expression) -> Vec<Option<(&'a Expression, bool)>> {
+        match expression {
+            not @ Expression::Not(expr) => {
+                [
+                    vec![Some((not, Self::resolve_expression(not, truth_row)))],
+                    Self::generate_truth_table(truth_row, expr),
+                    vec![None]
+                ].concat()
+            }
+            binary @ Expression::Binary { left, right, .. } => {
+                [
+                    vec![Some((binary, Self::resolve_expression(binary, truth_row)))],
+                    Self::generate_truth_table(truth_row, left),
+                    Self::generate_truth_table(truth_row, right)
+                ].concat()
+            }
+            atomic @ Expression::Atomic(_) => {
+                vec![Some((expression, Self::resolve_expression(atomic, truth_row)))]
+            }
+        }
     }
 
-    fn resolve_expression(expression: &Expression, truths: &[Option<(&Expression, bool)>]) -> bool {
+    fn resolve_expression(expression: &Expression, helper: &[bool]) -> bool {
         todo!("Resolve the expression with the given row of booleans")
     }
 }

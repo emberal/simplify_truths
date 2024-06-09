@@ -1,5 +1,4 @@
 use std::cmp::max;
-use std::ops::{Deref, DerefMut};
 
 #[macro_export]
 macro_rules! set {
