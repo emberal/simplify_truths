@@ -4,3 +4,4 @@ pub mod operator;
 pub mod helpers;
 pub mod simplify;
 mod truth_table;
+mod iterator;

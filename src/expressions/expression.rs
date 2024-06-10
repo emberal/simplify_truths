@@ -1,5 +1,6 @@
 use std::fmt::Display;
 use serde::{Deserialize, Serialize};
+use crate::expressions::iterator::ExpressionIterator;
 
 use crate::expressions::operator::BinaryOperator;
 use crate::parsing::expression_parser::parse_expression;
@@ -51,6 +52,19 @@ impl Expression {
                 }
             }
         }
+    }
+
+    pub fn iter(&self) -> ExpressionIterator {
+        ExpressionIterator::new(self.clone())
+    }
+}
+
+impl IntoIterator for Expression {
+    type Item = Expression;
+    type IntoIter = ExpressionIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        ExpressionIterator::new(self)
     }
 }
 
