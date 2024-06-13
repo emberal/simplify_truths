@@ -1,4 +1,4 @@
-name: Publish Docker image
+name: Deploy image to Docker Hub and pull it
 
 on:
   push:
@@ -29,7 +29,7 @@ jobs:
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/simplify-truths-api:latest
 
   pull_from_registry:
-    name: Pull Docker image from Docker Hub
+    name: Pull Docker image from Docker Hub to server
     needs: push_to_registry
     runs-on: self-hosted
 
