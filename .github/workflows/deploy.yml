@@ -2,7 +2,9 @@ name: Deploy image to Docker Hub and pull it
 
 on:
   push:
-    branches: [ master, deploy ]
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
 
 jobs:
   deploy:
