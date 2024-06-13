@@ -13,4 +13,4 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v4
       - name: Run
-        run: docker-compose up -d
+        run: docker-compose up -d --build
