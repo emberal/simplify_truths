@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt::Display;
 use serde::{Deserialize, Serialize};
 use crate::expressions::iterator::ExpressionIterator;
@@ -9,7 +10,7 @@ pub trait OppositeEq {
     fn opposite_eq(&self, other: &Self) -> bool;
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Expression {
     Not(Box<Expression>),
@@ -31,6 +32,18 @@ impl Expression {
             Expression::Not(expr) => expr.exists(atomic_value),
             Expression::Binary { left, right, .. } => left.exists(atomic_value) || right.exists(atomic_value),
             Expression::Atomic(value) => value == atomic_value,
+        }
+    }
+
+    pub fn get_atomic_values(&self) -> HashSet<String> {
+        match self {
+            Expression::Not(expr) => expr.get_atomic_values(),
+            Expression::Binary { left, right, .. } => {
+                let mut values = left.get_atomic_values();
+                values.extend(right.get_atomic_values());
+                values
+            }
+            Expression::Atomic(value) => HashSet::from([value.clone()])
         }
     }
 

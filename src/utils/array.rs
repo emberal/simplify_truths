@@ -1,5 +1,3 @@
-use std::cmp::max;
-
 #[macro_export]
 macro_rules! set {
     () => { std::collections::HashSet::new() };
@@ -28,6 +26,20 @@ macro_rules! matrix {
     };
     ($x:expr; $m:expr => $n:expr) => {
         vec![vec![$x; $m]; $n]
+    };
+}
+
+#[macro_export]
+macro_rules! map {
+    () => { std::collections::HashMap::new() };
+    ($($k:expr => $v:expr),*) => {
+        {
+            let mut temp_map = std::collections::HashMap::new();
+            $(
+                temp_map.insert($k, $v);
+            )*
+            temp_map
+        }
     };
 }
 

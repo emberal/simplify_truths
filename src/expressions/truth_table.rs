@@ -1,9 +1,9 @@
-use std::slice::Iter;
+use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
 use crate::expressions::expression::Expression;
-use crate::expressions::operator::BinaryOperator;
+use crate::map;
 use crate::utils::array::Distinct;
 
 type TruthMatrix = Vec<Vec<bool>>;
@@ -40,9 +40,10 @@ pub struct TruthTableOptions {
 }
 
 impl TruthTable {
+    // TODO options
     pub fn new(expression: &Expression, options: TruthTableOptions) -> Self {
         let header = Self::extract_header(expression);
-        let truth_matrix = Self::generate_truth_matrix(expression);
+        let truth_matrix = Self::generate_truth_matrix(expression, &header);
         Self { header, truth_matrix }
     }
 
@@ -78,15 +79,20 @@ impl TruthTable {
         }
     }
 
-    fn generate_truth_matrix(expression: &Expression) -> TruthMatrix {
-        let count = expression.count_distinct();
-        if count == 0 {
+    fn generate_truth_matrix(expression: &Expression, header: &[String]) -> TruthMatrix {
+        let mut atomics = expression.get_atomic_values()
+            .into_iter().collect::<Vec<String>>();
+        if atomics.is_empty() {
             return vec![];
         }
-        Self::truth_combinations(count)
-            .iter().map(|combo| {
-            Self::resolve_expression(expression, &mut combo.iter())
-        }).collect()
+        atomics.sort();
+        Self::truth_combinations(atomics.len()).iter()
+            .map(|combo| {
+                Self::resolve_expression(expression, &atomics.iter()
+                    .enumerate()
+                    .map(|(index, value)| (value.clone(), combo[index]))
+                    .collect(), header)
+            }).collect()
     }
 
     fn truth_combinations(count: usize) -> TruthMatrix {
@@ -97,31 +103,41 @@ impl TruthTable {
             ).collect()
     }
 
-    fn resolve_expression(expression: &Expression, booleans: &mut Iter<bool>) -> Vec<bool> {
+    fn resolve_expression(expression: &Expression, booleans: &HashMap<String, bool>, header: &[String]) -> Vec<bool> {
+        let expression_map = Self::_resolve_expression(expression, booleans);
+        let string_map = expression_map.iter()
+            .map(|(key, value)| (key.to_string(), *value))
+            .collect::<HashMap<String, bool>>();
+
+        header.iter()
+            .map(|s_expr| string_map.get(s_expr).copied().expect("Expression not found in map"))
+            .collect()
+    }
+
+    fn _resolve_expression<'a>(expression: &'a Expression, booleans: &HashMap<String, bool>) -> HashMap<&'a Expression, bool> {
         match expression {
-            Expression::Not(expr) => {
-                Self::resolve_expression(expr, booleans)
-                    .iter().map(|value| !value).collect()
+            not @ Expression::Not(expr) => {
+                let mut map = Self::_resolve_expression(expr, booleans);
+                if let Some(value) = map.get(expr.as_ref()) {
+                    map.insert(not, !value);
+                }
+                map
             }
-            Expression::Binary { left, right, .. } => {
-                let left_values = Self::resolve_expression(left, booleans);
-                let right_values = Self::resolve_expression(right, booleans);
-                left_values.iter()
-                    .zip(right_values.iter())
-                    .flat_map(|(left_value, right_value)| {
-                        [*left_value, *right_value, match expression {
-                            Expression::Binary { operator: BinaryOperator::And, .. } => *left_value && *right_value,
-                            Expression::Binary { operator: BinaryOperator::Or, .. } => *left_value || *right_value,
-                            Expression::Binary { operator: BinaryOperator::Implication, .. } => !*left_value || *right_value,
-                            _ => false,
-                        }]
-                    }).collect()
+            binary @ Expression::Binary { left, right, operator } => {
+                let left_map = Self::_resolve_expression(left, booleans);
+                let right_map = Self::_resolve_expression(right, booleans);
+                let mut map = left_map;
+                map.extend(right_map);
+                if let (Some(left_value), Some(right_value)) = (map.get(left.as_ref()), map.get(right.as_ref())) {
+                    map.insert(binary, operator.eval(*left_value, *right_value));
+                }
+                map
             }
-            Expression::Atomic(_) => {
-                if let Some(value) = booleans.next() {
-                    vec![*value]
+            atomic @ Expression::Atomic(value) => {
+                if let Some(value) = booleans.get(value) {
+                    map!(atomic => *value)
                 } else {
-                    vec![]
+                    unreachable!("Atomic value not found in booleans")
                 }
             }
         }
@@ -131,13 +147,21 @@ impl TruthTable {
 #[cfg(test)]
 mod tests {
     use crate::matrix;
+
     use super::*;
 
+    // TODO fails sometimes...
     #[test]
     fn test_new_truth_table() {
         let expression = and!(atomic!("A"), atomic!("B"));
         let truth_table = TruthTable::new(&expression, Default::default());
         assert_eq!(truth_table.header, vec!["A", "B", "A ⋀ B"]);
+        assert_ne!(truth_table.truth_matrix, matrix![
+            true, true, true;
+            false, true, false;
+            true, false, false;
+            false, false, false
+        ]);
         assert_eq!(truth_table.truth_matrix, matrix![
             true, true, true;
             true, false, false;
@@ -147,7 +171,37 @@ mod tests {
     }
 
     #[test]
-    fn test_truth_combinations() {
+    fn test_new_truth_table_a_and_b_or_c() {
+        let expression = and!(or!(atomic!("A"), atomic!("C")), or!(atomic!("B"), atomic!("C")));
+        let truth_table = TruthTable::new(&expression, Default::default());
+        let atomics = 3;
+
+        assert_eq!(truth_table.header, vec!["A", "C", "(A ⋁ C)", "B", "(B ⋁ C)", "(A ⋁ C) ⋀ (B ⋁ C)"]);
+        assert_eq!(truth_table.truth_matrix.len(), 2usize.pow(atomics as u32));
+        assert_eq!(truth_table.truth_matrix[0].len(), 6);
+        assert_eq!(truth_table.truth_matrix[0], vec![true, true, true, true, true, true]);
+        assert_eq!(truth_table.truth_matrix[1], vec![true, false, true, true, true, true]);
+        assert_eq!(truth_table.truth_matrix[2], vec![true, true, true, false, true, true]);
+        assert_eq!(truth_table.truth_matrix[3], vec![true, false, true, false, false, false]);
+        assert_eq!(truth_table.truth_matrix[4], vec![false, true, true, true, true, true]);
+        assert_eq!(truth_table.truth_matrix[5], vec![false, false, false, true, true, false]);
+        assert_eq!(truth_table.truth_matrix[6], vec![false, true, true, false, true, true]);
+        assert_eq!(truth_table.truth_matrix[7], vec![false, false, false, false, false, false]);
+    }
+
+    #[test]
+    fn test_truth_combinations_2() {
+        let combinations = TruthTable::truth_combinations(2);
+        assert_eq!(combinations, matrix![
+            true, true;
+            true, false;
+            false, true;
+            false, false
+        ]);
+    }
+
+    #[test]
+    fn test_truth_combinations_3() {
         let combinations = TruthTable::truth_combinations(3);
         assert_eq!(combinations, matrix![
             true, true, true;
@@ -164,26 +218,61 @@ mod tests {
     #[test]
     fn test_resolve_expression_and_all_true() {
         let expression = and!(atomic!("A"), atomic!("B"));
-        let booleans = [true, true];
-        let values = TruthTable::resolve_expression(&expression, &mut booleans.iter());
+        let booleans = map!["A".into() => true, "B".into() => true];
+        let header = vec!["A".into(), "B".into(), "A ⋀ B".into()];
+        let values = TruthTable::resolve_expression(&expression, &booleans, &header);
         assert_eq!(values, vec![true, true, true]);
     }
 
     #[test]
     fn test_resolve_expression_and_1_true_1_false() {
         let expression = and!(atomic!("A"), atomic!("B"));
-        let booleans = [true, false];
-        let values = TruthTable::resolve_expression(&expression, &mut booleans.iter());
+        let booleans = map!["A".into() => true, "B".into() => false];
+        let header = vec!["A".into(), "B".into(), "A ⋀ B".into()];
+        let values = TruthTable::resolve_expression(&expression, &booleans, &header);
         assert_eq!(values, vec![true, false, false]);
     }
 
     #[test]
     fn test_resolve_expression_or_1_true_1_false() {
         let expression = or!(atomic!("A"), atomic!("B"));
-        let booleans = [true, false];
-        let values = TruthTable::resolve_expression(&expression, &mut booleans.iter());
+        let booleans = map!["A".into() => true, "B".into() => false];
+        let header = vec!["A".into(), "B".into(), "(A ⋁ B)".into()];
+        let values = TruthTable::resolve_expression(&expression, &booleans, &header);
         assert_eq!(values, vec![true, false, true]);
     }
+
+    #[test]
+    fn test_resolve_expression_duplicate_atomic() {
+        let expression = and!(atomic!("A"), atomic!("A"));
+        let booleans = map!["A".into() => true];
+        let header = vec!["A".into(), "A ⋀ A".into()];
+        let values = TruthTable::resolve_expression(&expression, &booleans, &header);
+        assert_eq!(values, vec![true, true]);
+    }
+
+    #[test]
+    fn test_resolve_expression_even_more_duplicates() {
+        let expression = and!(atomic!("A"), and!(atomic!("A"), and!(atomic!("A"), atomic!("A"))));
+        let booleans = HashMap::from([("A".into(), true)]);
+        let header = vec!["A".into(), "A ⋀ A".into(), "A ⋀ A ⋀ A".into(), "A ⋀ A ⋀ A ⋀ A".into()];
+        let values = TruthTable::resolve_expression(&expression, &booleans, &header);
+        assert_eq!(values, vec![true, true, true, true]);
+    }
+
+    #[test]
+    fn _test_resolve_expression_even_more_duplicates() {
+        let expression = and!(atomic!("A"), and!(atomic!("A"), and!(atomic!("A"), atomic!("A"))));
+        let booleans = HashMap::from([("A".into(), true)]);
+        let values = TruthTable::_resolve_expression(&expression, &booleans);
+        assert_eq!(values, HashMap::from([
+            (&atomic!("A"), true),
+            (&and!(atomic!("A"), atomic!("A")), true),
+            (&and!(atomic!("A"), and!(atomic!("A"), atomic!("A"))), true),
+            (&and!(atomic!("A"), and!(atomic!("A"), and!(atomic!("A"), atomic!("A")))), true),
+        ]));
+    }
+
 
     #[test]
     fn test_atomic_expression() {

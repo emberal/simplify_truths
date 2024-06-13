@@ -27,3 +27,11 @@ GET {{url}}/simplify/!A
     expression("A => B")
 %}
 GET {{url}}/simplify/{{expression}}
+
+### GET with table
+< {%
+    import {expression} from "./common";
+
+    expression("A & B | C")
+%}
+GET {{url}}/simplify/table/{{expression}}
