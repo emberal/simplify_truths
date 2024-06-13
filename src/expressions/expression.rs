@@ -1,5 +1,7 @@
+use std::collections::HashSet;
 use std::fmt::Display;
 use serde::{Deserialize, Serialize};
+use crate::expressions::iterator::ExpressionIterator;
 
 use crate::expressions::operator::BinaryOperator;
 use crate::parsing::expression_parser::parse_expression;
@@ -8,7 +10,7 @@ pub trait OppositeEq {
     fn opposite_eq(&self, other: &Self) -> bool;
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Expression {
     Not(Box<Expression>),
@@ -25,16 +27,57 @@ impl Expression {
         }
     }
 
-    pub fn is_not(&self) -> bool {
-        matches!(self, Expression::Not(_))
-    }
-
     pub fn exists(&self, atomic_value: &str) -> bool {
         match self {
             Expression::Not(expr) => expr.exists(atomic_value),
             Expression::Binary { left, right, .. } => left.exists(atomic_value) || right.exists(atomic_value),
             Expression::Atomic(value) => value == atomic_value,
         }
+    }
+
+    pub fn get_atomic_values(&self) -> HashSet<String> {
+        match self {
+            Expression::Not(expr) => expr.get_atomic_values(),
+            Expression::Binary { left, right, .. } => {
+                let mut values = left.get_atomic_values();
+                values.extend(right.get_atomic_values());
+                values
+            }
+            Expression::Atomic(value) => HashSet::from([value.clone()])
+        }
+    }
+
+    pub fn count_distinct(&self) -> usize {
+        self.count_distinct_with_visited(vec![].as_mut())
+    }
+
+    fn count_distinct_with_visited(&self, visited: &mut Vec<String>) -> usize {
+        match self {
+            Expression::Not(expr) => expr.count_distinct_with_visited(visited),
+            Expression::Binary { left, right, .. } =>
+                left.count_distinct_with_visited(visited) + right.count_distinct_with_visited(visited),
+            Expression::Atomic(value) => {
+                if visited.contains(value) {
+                    0
+                } else {
+                    visited.push(value.clone());
+                    1
+                }
+            }
+        }
+    }
+
+    pub fn iter(&self) -> ExpressionIterator {
+        ExpressionIterator::new(self.clone())
+    }
+}
+
+impl IntoIterator for Expression {
+    type Item = Expression;
+    type IntoIter = ExpressionIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        ExpressionIterator::new(self)
     }
 }
 
@@ -88,6 +131,30 @@ impl Display for Expression {
 mod tests {
     use crate::{and, atomic, implies, not, or};
     use crate::expressions::expression::Expression;
+
+    #[test]
+    fn test_count_distinct() {
+        let expression = and!(
+            atomic!("a"),
+            or!(
+                atomic!("b"),
+                atomic!("c")
+            )
+        );
+        assert_eq!(expression.count_distinct(), 3);
+    }
+
+    #[test]
+    fn test_count_distinct_duplicates() {
+        let expression = and!(
+            atomic!("a"),
+            or!(
+                atomic!("b"),
+                atomic!("a")
+            )
+        );
+        assert_eq!(expression.count_distinct(), 2);
+    }
 
     #[test]
     fn test_expression_a_and_not_b_display() {

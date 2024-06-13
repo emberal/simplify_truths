@@ -9,6 +9,7 @@ mod parsing;
 mod routing;
 mod language;
 mod config;
+mod utils;
 
 #[tokio::main]
 async fn main() {

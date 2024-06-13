@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::expressions::expression::Expression;
 use crate::expressions::simplify::Simplify;
+use crate::expressions::truth_table::{TruthTable, TruthTableOptions};
 use crate::language::{AcceptLanguage, Language};
 
 pub fn router() -> Router<()> {
@@ -38,23 +39,45 @@ struct SimplifyResponse {
     after: String,
     order_of_operations: Vec<String>,
     expression: Expression,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    truth_table: Option<TruthTable>,
 }
 
 // TODO
 async fn simplify(Path(path): Path<String>, query: Query<QueryOptions>, accept_language: Option<AcceptLanguage>) -> Response {
-    if let Ok(expression) = Expression::try_from(path.as_str()) {
-        let simplified = expression.simplify();
+    if let Ok(mut expression) = Expression::try_from(path.as_str()) {
+        let before = expression.to_string();
+        if query.simplify {
+            expression = expression.simplify();
+        }
         Json(SimplifyResponse {
-            before: expression.to_string(),
-            after: simplified.to_string(),
+            before,
+            after: expression.to_string(),
             order_of_operations: vec![], // TODO
-            expression: simplified,
+            expression,
+            truth_table: None,
         }).into_response()
     } else {
         (StatusCode::BAD_REQUEST, "Invalid expression").into_response()
     }
 }
 
-async fn simplify_and_table() {
-    unimplemented!("Not yet implemented")
+async fn simplify_and_table(Path(path): Path<String>, query: Query<QueryOptions>, accept_language: Option<AcceptLanguage>) -> Response {
+    if let Ok(mut expression) = Expression::try_from(path.as_str()) {
+        let before = expression.to_string();
+        if query.simplify {
+            expression = expression.simplify();
+        }
+        // TODO options
+        let truth_table = TruthTable::new(&expression, TruthTableOptions::default());
+        Json(SimplifyResponse {
+            before,
+            after: expression.to_string(),
+            order_of_operations: vec![], // TODO
+            expression,
+            truth_table: Some(truth_table),
+        }).into_response()
+    } else {
+        (StatusCode::BAD_REQUEST, "Invalid expression").into_response()
+    }
 }
