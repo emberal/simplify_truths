@@ -7,5 +7,5 @@ pub fn router() -> Router {
 }
 
 async fn index() -> &'static str {
-    "Welcome to the Simplify Truths API!\n"
+    "Welcome to the Simplify Truths API V2!\n"
 }
