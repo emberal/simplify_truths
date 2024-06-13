@@ -1,0 +1,16 @@
+name: Deploy image to Docker Hub and pull it
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  deploy:
+    name: Build and run
+    runs-on: self-hosted
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+      - name: Run
+        run: docker-compose up -d --build
