@@ -9,5 +9,5 @@ pub fn router() -> Router<()> {
 }
 
 async fn table() {
-    unimplemented!("Not yet implemented")
+    unimplemented!()
 }

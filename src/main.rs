@@ -1,6 +1,10 @@
 use std::net::SocketAddr;
 
 use tokio::net::TcpListener;
+use tower_http::cors::{Any, CorsLayer};
+use tower_http::trace;
+use tower_http::trace::TraceLayer;
+use tracing::Level;
 
 use crate::routing::{index, simplify, table};
 
@@ -18,11 +22,25 @@ async fn main() {
         .await
         .unwrap();
 
-    println!("Listening on: {}", listener.local_addr().unwrap());
+    tracing_subscriber::fmt()
+        .with_target(false)
+        .compact()
+        .init();
 
     let routes = simplify::router()
         .merge(table::router())
         .merge(index::router());
 
-    axum::serve(listener, routes).await.unwrap();
+    let app = routes
+        .layer(CorsLayer::new().allow_origin(Any))
+        .layer(TraceLayer::new_for_http()
+            .make_span_with(trace::DefaultMakeSpan::new()
+                .level(Level::INFO))
+            .on_response(trace::DefaultOnResponse::new()
+                .level(Level::INFO))
+        );
+
+    tracing::info!("Starting server on: {addr}");
+
+    axum::serve(listener, app.into_make_service()).await.unwrap();
 }

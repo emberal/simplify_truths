@@ -1,6 +1,18 @@
 ### GET Atomic Expression
 GET {{url}}/simplify/A
 
+### GET Invalid Expression should return 400 Bad Request
+GET {{url}}/simplify/A B
+
+> {%
+    client.test("Status code is 400", () => {
+        client.assert(response.status === 400, "Response status is not 400");
+    });
+    client.test("Content-type is application/json", () => {
+        client.assert(response.headers.valueOf("content-type") === "application/json", "Content-Type is not application/json")
+    });
+%}
+
 ### GET And Expression
 < {%
     import {expression} from './common.js';

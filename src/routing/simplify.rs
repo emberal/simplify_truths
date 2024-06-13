@@ -33,14 +33,32 @@ struct QueryOptions {
 }
 
 #[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct SimplifyResponse {
+enum Law {
+    // TODO
+}
+
+#[derive(Serialize)]
+struct OrderOfOperation {
     before: String,
     after: String,
-    order_of_operations: Vec<String>,
+    law: Law, // TODO
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SimplifyResponse {
+    version: String,  // TODO better versioning
+    before: String,
+    after: String,
+    order_of_operations: Vec<OrderOfOperation>,
     expression: Expression,
     #[serde(skip_serializing_if = "Option::is_none")]
     truth_table: Option<TruthTable>,
+}
+
+#[derive(Serialize)]
+struct Error {
+    message: String,
 }
 
 // TODO
@@ -51,6 +69,7 @@ async fn simplify(Path(path): Path<String>, query: Query<QueryOptions>, accept_l
             expression = expression.simplify();
         }
         Json(SimplifyResponse {
+            version: "2.0.0".to_string(),
             before,
             after: expression.to_string(),
             order_of_operations: vec![], // TODO
@@ -58,7 +77,7 @@ async fn simplify(Path(path): Path<String>, query: Query<QueryOptions>, accept_l
             truth_table: None,
         }).into_response()
     } else {
-        (StatusCode::BAD_REQUEST, "Invalid expression").into_response()
+        (StatusCode::BAD_REQUEST, Json(Error { message: "Invalid expression".into() })).into_response()
     }
 }
 
@@ -71,6 +90,7 @@ async fn simplify_and_table(Path(path): Path<String>, query: Query<QueryOptions>
         // TODO options
         let truth_table = TruthTable::new(&expression, TruthTableOptions::default());
         Json(SimplifyResponse {
+            version: "2.0.0".to_string(),
             before,
             after: expression.to_string(),
             order_of_operations: vec![], // TODO
@@ -78,6 +98,6 @@ async fn simplify_and_table(Path(path): Path<String>, query: Query<QueryOptions>
             truth_table: Some(truth_table),
         }).into_response()
     } else {
-        (StatusCode::BAD_REQUEST, "Invalid expression").into_response()
+        (StatusCode::BAD_REQUEST, Json(Error { message: "Invalid expression".into() })).into_response()
     }
 }
