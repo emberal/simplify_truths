@@ -55,8 +55,8 @@ impl TruthTable {
     ///     - A vector of strings representing the header
     /// # Example
     /// ```
-    /// let expression = TruthTable::extract_header(&atomic!("A"));
-    /// let complex_expression = TruthTable::extract_header(&implies!(and!(atomic!("A"), atomic!("B")), or!(atomic!("C"), atomic!("D"))));
+    /// let expression = TruthTable::extract_header(&atomic("A"));
+    /// let complex_expression = TruthTable::extract_header(&implies(and(atomic("A"), atomic("B")), or(atomic("C"), atomic("D"))));
     /// assert_eq!(expression, vec!["A"]);
     /// assert_eq!(complex_expression, vec!["A", "B", "A ⋀ B", "C", "D", "(C ⋁ D)", "A ⋀ B ➔ (C ⋁ D)"]);
     /// ```
@@ -146,14 +146,14 @@ impl TruthTable {
 
 #[cfg(test)]
 mod tests {
+    use crate::expressions::helpers::{and, atomic, implies, not, or};
     use crate::matrix;
 
     use super::*;
 
-    // TODO fails sometimes...
     #[test]
     fn test_new_truth_table() {
-        let expression = and!(atomic!("A"), atomic!("B"));
+        let expression = and(atomic("A"), atomic("B"));
         let truth_table = TruthTable::new(&expression, Default::default());
         assert_eq!(truth_table.header, vec!["A", "B", "A ⋀ B"]);
         assert_ne!(truth_table.truth_matrix, matrix![
@@ -172,7 +172,7 @@ mod tests {
 
     #[test]
     fn test_new_truth_table_a_and_b_or_c() {
-        let expression = and!(or!(atomic!("A"), atomic!("C")), or!(atomic!("B"), atomic!("C")));
+        let expression = and(or(atomic("A"), atomic("C")), or(atomic("B"), atomic("C")));
         let truth_table = TruthTable::new(&expression, Default::default());
         let atomics = 3;
 
@@ -217,7 +217,7 @@ mod tests {
 
     #[test]
     fn test_resolve_expression_and_all_true() {
-        let expression = and!(atomic!("A"), atomic!("B"));
+        let expression = and(atomic("A"), atomic("B"));
         let booleans = map!["A".into() => true, "B".into() => true];
         let header = vec!["A".into(), "B".into(), "A ⋀ B".into()];
         let values = TruthTable::resolve_expression(&expression, &booleans, &header);
@@ -226,7 +226,7 @@ mod tests {
 
     #[test]
     fn test_resolve_expression_and_1_true_1_false() {
-        let expression = and!(atomic!("A"), atomic!("B"));
+        let expression = and(atomic("A"), atomic("B"));
         let booleans = map!["A".into() => true, "B".into() => false];
         let header = vec!["A".into(), "B".into(), "A ⋀ B".into()];
         let values = TruthTable::resolve_expression(&expression, &booleans, &header);
@@ -235,7 +235,7 @@ mod tests {
 
     #[test]
     fn test_resolve_expression_or_1_true_1_false() {
-        let expression = or!(atomic!("A"), atomic!("B"));
+        let expression = or(atomic("A"), atomic("B"));
         let booleans = map!["A".into() => true, "B".into() => false];
         let header = vec!["A".into(), "B".into(), "(A ⋁ B)".into()];
         let values = TruthTable::resolve_expression(&expression, &booleans, &header);
@@ -244,7 +244,7 @@ mod tests {
 
     #[test]
     fn test_resolve_expression_duplicate_atomic() {
-        let expression = and!(atomic!("A"), atomic!("A"));
+        let expression = and(atomic("A"), atomic("A"));
         let booleans = map!["A".into() => true];
         let header = vec!["A".into(), "A ⋀ A".into()];
         let values = TruthTable::resolve_expression(&expression, &booleans, &header);
@@ -253,7 +253,7 @@ mod tests {
 
     #[test]
     fn test_resolve_expression_even_more_duplicates() {
-        let expression = and!(atomic!("A"), and!(atomic!("A"), and!(atomic!("A"), atomic!("A"))));
+        let expression = and(atomic("A"), and(atomic("A"), and(atomic("A"), atomic("A"))));
         let booleans = HashMap::from([("A".into(), true)]);
         let header = vec!["A".into(), "A ⋀ A".into(), "A ⋀ A ⋀ A".into(), "A ⋀ A ⋀ A ⋀ A".into()];
         let values = TruthTable::resolve_expression(&expression, &booleans, &header);
@@ -262,70 +262,70 @@ mod tests {
 
     #[test]
     fn _test_resolve_expression_even_more_duplicates() {
-        let expression = and!(atomic!("A"), and!(atomic!("A"), and!(atomic!("A"), atomic!("A"))));
+        let expression = and(atomic("A"), and(atomic("A"), and(atomic("A"), atomic("A"))));
         let booleans = HashMap::from([("A".into(), true)]);
         let values = TruthTable::_resolve_expression(&expression, &booleans);
         assert_eq!(values, HashMap::from([
-            (&atomic!("A"), true),
-            (&and!(atomic!("A"), atomic!("A")), true),
-            (&and!(atomic!("A"), and!(atomic!("A"), atomic!("A"))), true),
-            (&and!(atomic!("A"), and!(atomic!("A"), and!(atomic!("A"), atomic!("A")))), true),
+            (&atomic("A"), true),
+            (&and(atomic("A"), atomic("A")), true),
+            (&and(atomic("A"), and(atomic("A"), atomic("A"))), true),
+            (&and(atomic("A"), and(atomic("A"), and(atomic("A"), atomic("A")))), true),
         ]));
     }
 
 
     #[test]
     fn test_atomic_expression() {
-        let expression = atomic!("A");
+        let expression = atomic("A");
         let header = TruthTable::extract_header(&expression);
         assert_eq!(header, vec!["A"]);
     }
 
     #[test]
     fn test_not_expression() {
-        let expression = not!(atomic!("A"));
+        let expression = not(atomic("A"));
         let header = TruthTable::extract_header(&expression);
         assert_eq!(header, vec!["A", "¬A"]);
     }
 
     #[test]
     fn test_binary_and_expression() {
-        let expression = and!(atomic!("A"), atomic!("B"));
+        let expression = and(atomic("A"), atomic("B"));
         let header = TruthTable::extract_header(&expression);
         assert_eq!(header, vec!["A", "B", "A ⋀ B"]);
     }
 
     #[test]
     fn test_binary_or_expression() {
-        let expression = or!(atomic!("A"), atomic!("B"));
+        let expression = or(atomic("A"), atomic("B"));
         let header = TruthTable::extract_header(&expression);
         assert_eq!(header, vec!["A", "B", "(A ⋁ B)"]);
     }
 
     #[test]
     fn test_binary_implies_expression() {
-        let expression = implies!(atomic!("A"), atomic!("B"));
+        let expression = implies(atomic("A"), atomic("B"));
         let header = TruthTable::extract_header(&expression);
         assert_eq!(header, vec!["A", "B", "A ➔ B"]);
     }
 
     #[test]
     fn test_complex_expression() {
-        let expression = implies!(and!(atomic!("A"), atomic!("B")), or!(atomic!("C"), atomic!("D")));
+        let expression = implies(and(atomic("A"), atomic("B")), or(atomic("C"), atomic("D")));
         let header = TruthTable::extract_header(&expression);
         assert_eq!(header, vec!["A", "B", "A ⋀ B", "C", "D", "(C ⋁ D)", "A ⋀ B ➔ (C ⋁ D)"]);
     }
 
     #[test]
     fn test_equal_expressions_should_not_duplicate() {
-        let expression = and!(atomic!("A"), and!(atomic!("A"), and!(atomic!("A"), atomic!("A"))));
+        let expression = and(atomic("A"), and(atomic("A"), and(atomic("A"), atomic("A"))));
         let header = TruthTable::extract_header(&expression);
         assert_eq!(header, vec!["A", "A ⋀ A", "A ⋀ A ⋀ A", "A ⋀ A ⋀ A ⋀ A"]);
     }
 
     #[test]
     fn test_somewhat_equal() {
-        let expression = and!(atomic!("A"), and!(or!(not!(atomic!("A")), atomic!("B")), atomic!("A")));
+        let expression = and(atomic("A"), and(or(not(atomic("A")), atomic("B")), atomic("A")));
         let header = TruthTable::extract_header(&expression);
         assert_eq!(header, vec!["A", "¬A", "B", "(¬A ⋁ B)", "(¬A ⋁ B) ⋀ A", "A ⋀ (¬A ⋁ B) ⋀ A"]);
     }

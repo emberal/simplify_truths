@@ -1,93 +1,51 @@
-#[macro_export]
-macro_rules! and {
-    ($left:expr, $right:expr) => {
-        $crate::binary!($left, $crate::expressions::operator::BinaryOperator::And, $right)
-    };
+use std::rc::Rc;
+use crate::expressions::expression::Expression;
+use crate::expressions::operator::BinaryOperator;
+
+#[inline]
+pub fn and<L, R>(left: L, right: R) -> Expression
+where
+    L: Into<Rc<Expression>>,
+    R: Into<Rc<Expression>>,
+{
+    binary(left, BinaryOperator::And, right)
 }
 
-#[macro_export]
-macro_rules! or {
-    ($left:expr, $right:expr) => {
-        $crate::binary!($left, $crate::expressions::operator::BinaryOperator::Or, $right)
-    };
+#[inline]
+pub fn or<L, R>(left: L, right: R) -> Expression
+where
+    L: Into<Rc<Expression>>,
+    R: Into<Rc<Expression>>,
+{
+    binary(left, BinaryOperator::Or, right)
 }
 
-#[macro_export]
-macro_rules! implies {
-    ($left:expr, $right:expr) => {
-        $crate::binary!($left, $crate::expressions::operator::BinaryOperator::Implication, $right)
-    };
+#[inline]
+pub fn implies<L, R>(left: L, right: R) -> Expression
+where
+    L: Into<Rc<Expression>>,
+    R: Into<Rc<Expression>>,
+{
+    binary(left, BinaryOperator::Implication, right)
 }
 
-#[macro_export]
-macro_rules! binary {
-    ($left:expr, $operator:expr, $right:expr) => {
-        $crate::expressions::expression::Expression::Binary { left: Box::new($left), operator: $operator, right: Box::new($right) }
-    };
+#[inline]
+pub fn binary<L, R>(left: L, operator: BinaryOperator, right: R) -> Expression
+where
+    L: Into<Rc<Expression>>,
+    R: Into<Rc<Expression>>,
+{
+    Expression::Binary { left: left.into(), operator, right: right.into() }
 }
 
-#[macro_export]
-macro_rules! not {
-    ($value:expr) => {
-        $crate::expressions::expression::Expression::Not(Box::new($value))
-    };
+#[inline]
+pub fn not<T: Into<Rc<Expression>>>(value: T) -> Expression {
+    Expression::Not(value.into())
 }
 
-#[macro_export]
-macro_rules! atomic {
-    ($value:expr) => {
-        $crate::expressions::expression::Expression::Atomic($value.to_string())
-    };
+#[inline]
+pub fn atomic<T: Into<String>>(value: T) -> Expression {
+    Expression::Atomic(value.into())
 }
 
-// TODO
-#[macro_export]
-macro_rules! eval {
-    ($a:literal && $b:literal) => {
-        $crate::and!($crate::eval!($a), $crate::eval!($b))
-    };
-    ($a:literal || $b:literal) => {
-        $crate::or!($crate::eval!($a), $crate::eval!($b))
-    };
-    ($a:literal => $b:literal) => {
-        $crate::implies!($crate::eval!($a), $crate::eval!($b))
-    };
-    (!$a:expr) => {
-        $crate::not!($crate::eval!($a))
-    };
-    ($value:expr) => {
-        $crate::atomic!($value)
-    };
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::eval;
-    use crate::expressions::expression::Expression::{Atomic, Binary, Not};
-    use crate::expressions::operator::BinaryOperator::{And, Implication, Or};
-
-    #[test]
-    fn eval_atomic() {
-        assert_eq!(eval!("a"), Atomic("a".to_string()));
-    }
-
-    #[test]
-    fn eval_not() {
-        assert_eq!(eval!(!"a"), Not(Box::new(Atomic("a".to_string()))));
-    }
-
-    #[test]
-    fn eval_and() {
-        assert_eq!(eval!("a" && "b"), Binary { left: Box::new(Atomic("a".to_string())), operator: And, right: Box::new(Atomic("b".to_string())) });
-    }
-
-    #[test]
-    fn eval_or() {
-        assert_eq!(eval!("a" || "b"), Binary { left: Box::new(Atomic("a".to_string())), operator: Or, right: Box::new(Atomic("b".to_string())) });
-    }
-
-    #[test]
-    fn eval_implies() {
-        assert_eq!(eval!("a" => "b"), Binary { left: Box::new(Atomic("a".to_string())), operator: Implication, right: Box::new(Atomic("b".to_string())) });
-    }
-}
+// TODO eval function using nom parser
