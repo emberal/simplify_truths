@@ -1,6 +1,7 @@
 use axum::Json;
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
+
 use crate::expressions::expression::Expression;
 use crate::expressions::truth_table::TruthTable;
 

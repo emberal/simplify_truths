@@ -7,8 +7,7 @@ use serde::Deserialize;
 use crate::expressions::expression::Expression;
 use crate::expressions::simplify::Simplify;
 use crate::expressions::truth_table::{TruthTable, TruthTableOptions};
-use crate::language::{AcceptLanguage, Language};
-use crate::routing::error::Error;
+use crate::routing::error::{Error, ErrorKind};
 use crate::routing::response::SimplifyResponse;
 
 pub fn router() -> Router<()> {
@@ -26,8 +25,6 @@ const fn default_true() -> bool {
 
 #[derive(Deserialize)]
 struct QueryOptions {
-    #[serde(default)]
-    lang: Language,
     #[serde(default = "default_true")]
     simplify: bool,
     #[serde(default = "default_true")]
@@ -35,7 +32,7 @@ struct QueryOptions {
 }
 
 // TODO
-async fn simplify(Path(path): Path<String>, query: Query<QueryOptions>, accept_language: Option<AcceptLanguage>) -> Response {
+async fn simplify(Path(path): Path<String>, query: Query<QueryOptions>) -> Response {
     if let Ok(mut expression) = Expression::try_from(path.as_str()) {
         let before = expression.to_string();
         if query.simplify {
@@ -49,11 +46,11 @@ async fn simplify(Path(path): Path<String>, query: Query<QueryOptions>, accept_l
             truth_table: None,
         }.into_response()
     } else {
-        (StatusCode::BAD_REQUEST, Error::new("Invalid expression")).into_response()
+        (StatusCode::BAD_REQUEST, Error::new("Invalid expression", ErrorKind::InvalidExpression)).into_response()
     }
 }
 
-async fn simplify_and_table(Path(path): Path<String>, query: Query<QueryOptions>, accept_language: Option<AcceptLanguage>) -> Response {
+async fn simplify_and_table(Path(path): Path<String>, query: Query<QueryOptions>) -> Response {
     if let Ok(mut expression) = Expression::try_from(path.as_str()) {
         let before = expression.to_string();
         if query.simplify {
@@ -69,6 +66,6 @@ async fn simplify_and_table(Path(path): Path<String>, query: Query<QueryOptions>
             truth_table: Some(truth_table),
         }.into_response()
     } else {
-        (StatusCode::BAD_REQUEST, Error::new("Invalid expression")).into_response()
+        (StatusCode::BAD_REQUEST, Error::new("Invalid expression", ErrorKind::InvalidExpression)).into_response()
     }
 }
