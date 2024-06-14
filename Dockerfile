@@ -1,7 +1,7 @@
 # Creates a new cargo project, copies the Cargo.toml and Cargo.lock files to the new project,
 # builds the project, and then copies the built binary to a new image.
 
-FROM rust:1.78 as build
+FROM rust:1.79 as build
 LABEL authors="Martin Berg Alstad"
 
 RUN USER=root cargo new --bin simplify_truths
