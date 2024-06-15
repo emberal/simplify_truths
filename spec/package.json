@@ -2,9 +2,14 @@
   "name": "main",
   "version": "0.1.0",
   "type": "module",
+  "author": "Martin Berg Alstad",
+  "scripts": {
+    "tsp-compile": "tsp compile . --output-dir dist",
+    "redoc-build": "redocly build-docs dist/@typespec/openapi3/openapi.v2.yaml --output dist/index.html"
+  },
   "dependencies": {
     "@typespec/compiler": "latest",
-    "@typespec/openapi3": "^0.56.0"
+    "@typespec/openapi3": "^0.57.0"
   },
   "private": true
 }
