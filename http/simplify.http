@@ -1,3 +1,11 @@
+### GET index page
+
+GET {{url}}
+
+### GET OpenAPI page
+
+GET {{url}}/openapi
+
 ### GET Atomic Expression
 GET {{url}}/simplify/A
 
