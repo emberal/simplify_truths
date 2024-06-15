@@ -15,7 +15,7 @@ pub struct TruthTable {
     truth_matrix: TruthMatrix,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Copy, Clone, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Hide {
     #[default]
@@ -24,7 +24,7 @@ pub enum Hide {
     False,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Copy, Clone, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Sort {
     #[default]

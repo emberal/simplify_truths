@@ -40,6 +40,21 @@ GET {{url}}/simplify/!A
 %}
 GET {{url}}/simplify/{{expression}}
 
+### GET expression and don't simplify
+< {%
+    import {expression} from "./common";
+
+    expression("A & A")
+%}
+
+GET {{url}}/simplify/{{expression}}?simplify=false
+
+> {%
+    client.test("Response body is the same as the input", () => {
+        client.assert(response.body.after === response.body.before, "Response body is not the same as the input");
+    });
+%}
+
 ### GET with table
 < {%
     import {expression} from "./common";
