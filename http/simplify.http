@@ -82,3 +82,21 @@ GET {{url}}/simplify/table/{{expression}}?sort=TRUE_FIRST
         }
     });
 %}
+
+### GET with table and hide false values
+< {%
+    import {expression} from "./common";
+
+    expression("A & B | C")
+%}
+GET {{url}}/simplify/table/{{expression}}?hide=FALSE
+
+> {%
+    client.test("Response body does not contain false values", () => {
+        const table = response.body.truthTable;
+        const results = table.truthMatrix.map(arr => arr[arr.length - 1])
+        for (let i = 0; i < results.length; i++) {
+            client.assert(results[i] === true, "Response body contains false values")
+        }
+    });
+%}

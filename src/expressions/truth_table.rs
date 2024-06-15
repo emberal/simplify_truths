@@ -41,10 +41,9 @@ pub struct TruthTableOptions {
 }
 
 impl TruthTable {
-    // TODO hide option
     pub fn new(expression: &Expression, options: TruthTableOptions) -> Self {
         let header = Self::extract_header(expression);
-        let mut truth_matrix = Self::generate_truth_matrix(expression, &header);
+        let mut truth_matrix = Self::generate_truth_matrix(expression, &header, options.hide);
         if !matches!(options.sort, Sort::Default) {
             Self::sort_matrix(&mut truth_matrix, options.sort);
         }
@@ -91,7 +90,7 @@ impl TruthTable {
         }
     }
 
-    fn generate_truth_matrix(expression: &Expression, header: &[String]) -> TruthMatrix {
+    fn generate_truth_matrix(expression: &Expression, header: &[String], hide: Hide) -> TruthMatrix {
         let mut atomics = expression.get_atomic_values()
             .into_iter().collect::<Vec<String>>();
         if atomics.is_empty() {
@@ -99,11 +98,17 @@ impl TruthTable {
         }
         atomics.sort();
         Self::truth_combinations(atomics.len()).iter()
-            .map(|combo| {
-                Self::resolve_expression(expression, &atomics.iter()
+            .filter_map(|combo| {
+                let expression = Self::resolve_expression(expression, &atomics.iter()
                     .enumerate()
                     .map(|(index, value)| (value.clone(), combo[index]))
-                    .collect(), header)
+                    .collect(), header);
+                match (hide, expression.last()) {
+                    (Hide::True, Some(false)) => Some(expression),
+                    (Hide::False, Some(true)) => Some(expression),
+                    (Hide::None, _) => Some(expression),
+                    _ => None,
+                }
             }).collect()
     }
 
@@ -267,6 +272,50 @@ mod tests {
             true, true, true;
             false, true, true
         ]);
+    }
+
+    #[test]
+    fn test_hide_true_values() {
+        let expected = matrix![
+            true, false, false;
+            false, true, false;
+            false, false, false
+        ];
+        let matrix = TruthTable::generate_truth_matrix(
+            &and(atomic("A"), atomic("B")),
+            &["A".into(), "B".into(), "A ⋀ B".into()],
+            Hide::True,
+        );
+        assert_eq!(expected, matrix);
+    }
+
+    #[test]
+    fn test_hide_false_values() {
+        let expected = matrix![
+            true, true, true
+        ];
+        let matrix = TruthTable::generate_truth_matrix(
+            &and(atomic("A"), atomic("B")),
+            &["A".into(), "B".into(), "A ⋀ B".into()],
+            Hide::False,
+        );
+        assert_eq!(expected, matrix);
+    }
+
+    #[test]
+    fn test_hide_none() {
+        let expected = matrix![
+            true, true, true;
+            true, false, false;
+            false, true, false;
+            false, false, false
+        ];
+        let matrix = TruthTable::generate_truth_matrix(
+            &and(atomic("A"), atomic("B")),
+            &["A".into(), "B".into(), "A ⋀ B".into()],
+            Hide::None,
+        );
+        assert_eq!(expected, matrix);
     }
 
     #[test]
