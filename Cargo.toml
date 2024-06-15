@@ -10,7 +10,7 @@ nom = "7.1.3"
 # Async
 tokio = { version = "1.38.0", features = ["macros", "rt-multi-thread"] }
 # Serialization / Deserialization
-serde = { version = "1.0.203", features = ["derive"] }
+serde = { version = "1.0.203", features = ["derive", "rc"] }
 # API
 axum = "0.7.5"
 tower-http = { version = "0.5.2", features = ["cors", "trace"] }

@@ -11,7 +11,6 @@ use crate::routing::{index, simplify, table};
 mod expressions;
 mod parsing;
 mod routing;
-mod language;
 mod config;
 mod utils;
 

@@ -2,16 +2,31 @@ use axum::Json;
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 
+#[derive(Serialize, Default)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ErrorKind {
+    /// The syntax of the expression is invalid.
+    InvalidExpression,
+    /// The expression is too long.
+    LimitExceeded,
+    /// The expression is missing a character to be considered valid.
+    MissingCharacter,
+    /// Unexpected error.
+    #[default]
+    Unexpected,
+}
+
 #[derive(Serialize)]
 pub struct Error {
     pub message: String,
-    // TODO TYPE enum
+    pub kind: ErrorKind,
 }
 
 impl Error {
-    pub fn new(message: impl Into<String>) -> Self {
+    pub fn new(message: impl Into<String>, kind: ErrorKind) -> Self {
         Self {
             message: message.into(),
+            kind,
         }
     }
 }
