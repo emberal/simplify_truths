@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
@@ -40,11 +41,22 @@ pub struct TruthTableOptions {
 }
 
 impl TruthTable {
-    // TODO options
+    // TODO hide option
     pub fn new(expression: &Expression, options: TruthTableOptions) -> Self {
         let header = Self::extract_header(expression);
-        let truth_matrix = Self::generate_truth_matrix(expression, &header);
+        let mut truth_matrix = Self::generate_truth_matrix(expression, &header);
+        if !matches!(options.sort, Sort::Default) {
+            Self::sort_matrix(&mut truth_matrix, options.sort);
+        }
         Self { header, truth_matrix }
+    }
+
+    fn sort_matrix(truth_matrix: &mut TruthMatrix, sort: Sort) {
+        truth_matrix.sort_by(|row_a, row_b| match sort {
+            Sort::TrueFirst => row_b.last().cmp(&row_a.last()),
+            Sort::FalseFirst => row_a.last().cmp(&row_b.last()),
+            Sort::Default => Ordering::Equal,
+        })
     }
 
     /// Extracts the header for the truth table from the expression
@@ -62,16 +74,16 @@ impl TruthTable {
     /// ```
     fn extract_header(expression: &Expression) -> Vec<String> {
         match expression {
-            not @ Expression::Not(expr) => {
+            Expression::Not(expr) => {
                 let mut header = Self::extract_header(expr);
-                header.push(not.to_string());
+                header.push(expression.to_string());
                 header.distinct();
                 header
             }
-            binary @ Expression::Binary { left, right, .. } => {
+            Expression::Binary { left, right, .. } => {
                 let mut header = Self::extract_header(left);
                 header.extend(Self::extract_header(right));
-                header.push(binary.to_string());
+                header.push(expression.to_string());
                 header.distinct();
                 header
             }
@@ -116,26 +128,26 @@ impl TruthTable {
 
     fn _resolve_expression<'a>(expression: &'a Expression, booleans: &HashMap<String, bool>) -> HashMap<&'a Expression, bool> {
         match expression {
-            not @ Expression::Not(expr) => {
+            Expression::Not(expr) => {
                 let mut map = Self::_resolve_expression(expr, booleans);
                 if let Some(value) = map.get(expr.as_ref()) {
-                    map.insert(not, !value);
+                    map.insert(expression, !value);
                 }
                 map
             }
-            binary @ Expression::Binary { left, right, operator } => {
+            Expression::Binary { left, right, operator } => {
                 let left_map = Self::_resolve_expression(left, booleans);
                 let right_map = Self::_resolve_expression(right, booleans);
                 let mut map = left_map;
                 map.extend(right_map);
                 if let (Some(left_value), Some(right_value)) = (map.get(left.as_ref()), map.get(right.as_ref())) {
-                    map.insert(binary, operator.eval(*left_value, *right_value));
+                    map.insert(expression, operator.eval(*left_value, *right_value));
                 }
                 map
             }
-            atomic @ Expression::Atomic(value) => {
+            Expression::Atomic(value) => {
                 if let Some(value) = booleans.get(value) {
-                    map!(atomic => *value)
+                    map!(expression => *value)
                 } else {
                     unreachable!("Atomic value not found in booleans")
                 }
@@ -187,6 +199,74 @@ mod tests {
         assert_eq!(truth_table.truth_matrix[5], vec![false, false, false, true, true, false]);
         assert_eq!(truth_table.truth_matrix[6], vec![false, true, true, false, true, true]);
         assert_eq!(truth_table.truth_matrix[7], vec![false, false, false, false, false, false]);
+    }
+
+    #[test]
+    fn test_sort_matrix_true_first() {
+        let mut matrix = matrix![
+            true, true, true;
+            true, false, false;
+            false, true, true;
+            false, false, false
+        ];
+        TruthTable::sort_matrix(&mut matrix, Sort::TrueFirst);
+        assert_eq!(matrix, matrix![
+            true, true, true;
+            false, true, true;
+            true, false, false;
+            false, false, false
+        ]);
+    }
+
+    #[test]
+    fn test_sort_matrix_true_first_all_false_should_not_change() {
+        let mut matrix = matrix![
+            false, true, false;
+            false, true, false;
+            true, false, false;
+            true, false, false
+        ];
+        TruthTable::sort_matrix(&mut matrix, Sort::TrueFirst);
+        assert_eq!(matrix, matrix![
+            false, true, false;
+            false, true, false;
+            true, false, false;
+            true, false, false
+        ]);
+    }
+
+    #[test]
+    fn test_sort_matrix_default_should_not_change() {
+        let mut matrix = matrix![
+            true, true, true;
+            true, false, false;
+            false, true, true;
+            false, false, false
+        ];
+        TruthTable::sort_matrix(&mut matrix, Sort::Default);
+        assert_eq!(matrix, matrix![
+            true, true, true;
+            true, false, false;
+            false, true, true;
+            false, false, false
+        ]);
+    }
+
+    #[test]
+    fn test_sort_matrix_false_first() {
+        let mut matrix = matrix![
+            true, true, true;
+            true, false, false;
+            false, true, true;
+            false, false, false
+        ];
+        TruthTable::sort_matrix(&mut matrix, Sort::FalseFirst);
+        assert_eq!(matrix, matrix![
+            true, false, false;
+            false, false, false;
+            true, true, true;
+            false, true, true
+        ]);
     }
 
     #[test]
