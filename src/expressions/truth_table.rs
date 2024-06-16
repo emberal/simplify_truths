@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::expressions::expression::Expression;
 use crate::map;
+use crate::routing::options::TruthTableOptions;
 use crate::utils::array::Distinct;
 
 type TruthMatrix = Vec<Vec<bool>>;
@@ -32,12 +33,6 @@ pub enum Sort {
     Default,
     TrueFirst,
     FalseFirst,
-}
-
-#[derive(Debug, Default, Deserialize)]
-pub struct TruthTableOptions {
-    pub sort: Sort,
-    pub hide: Hide,
 }
 
 impl TruthTable {

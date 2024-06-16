@@ -131,3 +131,13 @@ GET {{url}}/simplify/{{expression}}
 ### GET with simplify="true"
 
 GET {{url}}/simplify/A?simplify=true&hide=NONE&sort=DEFAULT&caseSensitive=false&hideIntermediate=false
+
+### GET only table
+
+GET {{url}}/table/A
+
+> {%
+    client.test("Response body contains only the truth table", () => {
+        client.assert(response.body.truthTable, "Response body does not contain the truth table")
+    });
+%}

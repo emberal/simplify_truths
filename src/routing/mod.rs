@@ -1,3 +1,4 @@
 pub(crate) mod response;
-mod error;
+pub(crate) mod error;
 pub(crate) mod routes;
+pub(crate) mod options;

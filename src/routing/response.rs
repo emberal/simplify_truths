@@ -1,6 +1,6 @@
 use axum::Json;
 use axum::response::{IntoResponse, Response};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::expressions::expression::Expression;
 use crate::expressions::simplify::Law;
@@ -56,6 +56,7 @@ pub struct SimplifyResponse {
     pub truth_table: Option<TruthTable>,
 }
 
+// TODO derive macro
 impl IntoResponse for SimplifyResponse {
     fn into_response(self) -> Response {
         BaseResponse::create(self)
@@ -69,6 +70,18 @@ pub struct IsLegalResponse {
 }
 
 impl IntoResponse for IsLegalResponse {
+    fn into_response(self) -> Response {
+        BaseResponse::create(self)
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TruthTableResponse {
+    pub truth_table: TruthTable,
+}
+
+impl IntoResponse for TruthTableResponse {
     fn into_response(self) -> Response {
         BaseResponse::create(self)
     }

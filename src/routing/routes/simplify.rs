@@ -2,13 +2,12 @@ use axum::{Router, routing::get};
 use axum::extract::{Path, Query};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use serde::{Deserialize};
 
 use crate::expressions::expression::Expression;
-use crate::expressions::truth_table::{Hide, Sort, TruthTable, TruthTableOptions};
+use crate::expressions::truth_table::TruthTable;
 use crate::routing::error::{Error, ErrorKind};
+use crate::routing::options::{SimplifyAndTableOptions, SimplifyOptions};
 use crate::routing::response::SimplifyResponse;
-use crate::utils::serialize::{ret_true, deserialize_bool};
 
 pub fn router() -> Router<()> {
     Router::new()
@@ -17,17 +16,6 @@ pub fn router() -> Router<()> {
                   .route("/:exp", get(simplify))
                   .route("/table/:exp", get(simplify_and_table)),
         )
-}
-
-#[derive(Deserialize)]
-struct SimplifyOptions {
-    #[serde(
-        default = "ret_true",
-        deserialize_with = "deserialize_bool"
-    )]
-    simplify: bool,
-    #[serde(default = "ret_true")]
-    case_sensitive: bool, // TODO: Implement case sensitivity
 }
 
 async fn simplify(Path(path): Path<String>, Query(query): Query<SimplifyOptions>) -> Response {
@@ -52,20 +40,7 @@ async fn simplify(Path(path): Path<String>, Query(query): Query<SimplifyOptions>
     }
 }
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SimplifyAndTableQuery {
-    #[serde(flatten)]
-    simplify_options: SimplifyOptions,
-    #[serde(default)]
-    sort: Sort,
-    #[serde(default)]
-    hide: Hide,
-    #[serde(default)]
-    hide_intermediate_steps: bool, // TODO
-}
-
-async fn simplify_and_table(Path(path): Path<String>, Query(query): Query<SimplifyAndTableQuery>) -> Response {
+async fn simplify_and_table(Path(path): Path<String>, Query(query): Query<SimplifyAndTableOptions>) -> Response {
     match Expression::try_from(path.as_str()) {
         Ok(mut expression) => {
             let before = expression.to_string();
@@ -73,10 +48,7 @@ async fn simplify_and_table(Path(path): Path<String>, Query(query): Query<Simpli
             if query.simplify_options.simplify {
                 (expression, operations) = expression.simplify();
             }
-            let truth_table = TruthTable::new(&expression, TruthTableOptions {
-                sort: query.sort,
-                hide: query.hide,
-            });
+            let truth_table = TruthTable::new(&expression, query.table_options);
             SimplifyResponse {
                 before,
                 after: expression.to_string(),
