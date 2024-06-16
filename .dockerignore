@@ -1,6 +1,6 @@
 .github
 spec/node_modules
 http
-target
+*target
 README.md
 .gitignore
