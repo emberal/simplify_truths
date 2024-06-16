@@ -127,3 +127,7 @@ GET {{url}}/simplify/{{expression}}
         client.assert(operations[0].law === "ABSORPTION_LAW", `The law field does not match the expected value, was ${operations[0].law} but expected ABSORPTION_LAW`)
     });
 %}
+
+### GET with simplify="true"
+
+GET {{url}}/simplify/A?simplify=true&hide=NONE&sort=DEFAULT&caseSensitive=false&hideIntermediate=false

@@ -87,7 +87,6 @@ impl Expression {
             Expression::Not(expr) => {
                 match expr.deref() {
                     Expression::Binary { left, operator: BinaryOperator::And, right } => {
-                        // TODO unnecessary cloning calls to de_morgans_laws?
                         let left = not(left.de_morgans_laws(operations));
                         let right = not(right.de_morgans_laws(operations));
                         or(left, right).de_morgans_laws(operations)
@@ -115,7 +114,7 @@ impl Expression {
 
     fn absorption_law(&self, operations: &mut Vec<Operation>) -> Self {
         let result = match self {
-            Expression::Binary { left, operator: BinaryOperator::And | BinaryOperator::Or, right } if left == right => {
+            Expression::Binary { left, operator: BinaryOperator::And | BinaryOperator::Or, right } if *left == *right => {
                 left.absorption_law(operations)
             }
             Expression::Binary { left, operator: BinaryOperator::And, right } => {
@@ -135,15 +134,14 @@ impl Expression {
                 }
             }
             Expression::Binary { left, operator: BinaryOperator::Or, right } => {
-                let (left_ref, right_ref) = (left.as_ref(), right.as_ref());
-                match (left_ref, right_ref) {
+                match (left.as_ref(), right.as_ref()) {
                     (_, Expression::Binary { left: right_left, operator: BinaryOperator::And, right: right_right }) => {
-                        evaluate_equals_or_opposites(left_ref, right_left, right_right, or, operations).unwrap_or(
+                        evaluate_equals_or_opposites(left.as_ref(), right_left, right_right, or, operations).unwrap_or(
                             or(left.absorption_law(operations), right.absorption_law(operations))
                         )
                     }
                     (Expression::Binary { left: left_left, operator: BinaryOperator::And, right: left_right }, _) => {
-                        evaluate_equals_or_opposites(right_ref, left_left, left_right, or, operations).unwrap_or(
+                        evaluate_equals_or_opposites(right.as_ref(), left_left, left_right, or, operations).unwrap_or(
                             or(left.absorption_law(operations), right.absorption_law(operations))
                         )
                     }

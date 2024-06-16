@@ -2,12 +2,13 @@ use axum::{Router, routing::get};
 use axum::extract::{Path, Query};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use serde::Deserialize;
+use serde::{Deserialize};
 
 use crate::expressions::expression::Expression;
 use crate::expressions::truth_table::{Hide, Sort, TruthTable, TruthTableOptions};
 use crate::routing::error::{Error, ErrorKind};
 use crate::routing::response::SimplifyResponse;
+use crate::utils::serialize::{ret_true, deserialize_bool};
 
 pub fn router() -> Router<()> {
     Router::new()
@@ -18,19 +19,17 @@ pub fn router() -> Router<()> {
         )
 }
 
-const fn default_true() -> bool {
-    true
-}
-
 #[derive(Deserialize)]
 struct SimplifyOptions {
-    #[serde(default = "default_true")]
+    #[serde(
+        default = "ret_true",
+        deserialize_with = "deserialize_bool"
+    )]
     simplify: bool,
-    #[serde(default = "default_true")]
-    case_sensitive: bool,
+    #[serde(default = "ret_true")]
+    case_sensitive: bool, // TODO: Implement case sensitivity
 }
 
-// TODO
 async fn simplify(Path(path): Path<String>, Query(query): Query<SimplifyOptions>) -> Response {
     match Expression::try_from(path.as_str()) {
         Ok(mut expression) => {
@@ -62,6 +61,8 @@ struct SimplifyAndTableQuery {
     sort: Sort,
     #[serde(default)]
     hide: Hide,
+    #[serde(default)]
+    hide_intermediate_steps: bool, // TODO
 }
 
 async fn simplify_and_table(Path(path): Path<String>, Query(query): Query<SimplifyAndTableQuery>) -> Response {
