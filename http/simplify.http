@@ -108,3 +108,22 @@ GET {{url}}/simplify/table/{{expression}}?hide=FALSE
         }
     });
 %}
+
+### GET and assert operation
+
+< {%
+    import {expression} from "./common";
+
+    expression("A & A")
+%}
+GET {{url}}/simplify/{{expression}}
+
+> {%
+    client.test("Response body is the same as the input", () => {
+        const operations = response.body.operations;
+        client.assert(operations.length === 1, "Response body does not contain a single operation")
+        client.assert(operations[0].before === "A ⋀ A", `The before field dos not match the expected, was ${operations[0].before} but expected A ⋀ A`)
+        client.assert(operations[0].after === "A", `The after field does not match the expected value, was ${operations[0].after} but expected A`)
+        client.assert(operations[0].law === "ABSORPTION_LAW", `The law field does not match the expected value, was ${operations[0].law} but expected ABSORPTION_LAW`)
+    });
+%}
