@@ -1,6 +1,6 @@
 use axum::Json;
 use axum::response::{IntoResponse, Response};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::expressions::expression::Expression;
 use crate::expressions::simplify::Law;
@@ -57,6 +57,18 @@ pub struct SimplifyResponse {
 }
 
 impl IntoResponse for SimplifyResponse {
+    fn into_response(self) -> Response {
+        BaseResponse::create(self)
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IsLegalResponse {
+    pub is_legal: bool,
+}
+
+impl IntoResponse for IsLegalResponse {
     fn into_response(self) -> Response {
         BaseResponse::create(self)
     }

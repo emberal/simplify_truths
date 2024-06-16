@@ -1,3 +1,4 @@
+use axum::body::Body;
 use axum::response::Response;
 use axum::Router;
 use axum::routing::post;
@@ -9,6 +10,7 @@ pub fn router() -> Router<()> {
         )
 }
 
-async fn table() -> Response {
+// TODO Json Deserialize not working on Axum? Manually parse the body?
+async fn table(body: Body) -> Response {
     unimplemented!()
 }

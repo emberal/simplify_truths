@@ -13,7 +13,7 @@ tokio-util = { version = "0.7.11", features = ["io"] }
 # Serialization / Deserialization
 serde = { version = "1.0.203", features = ["derive", "rc"] }
 # API
-axum = "0.7.5"
+axum = { version = "0.7.5", features = ["macros"] }
 tower-http = { version = "0.5.2", features = ["cors", "trace"] }
 # Logging
 tracing = "0.1.40"
