@@ -5,7 +5,7 @@ use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 
 use crate::expressions::expression::Expression;
-use crate::expressions::truth_table::{TruthTable, TruthTableOptions};
+use crate::expressions::truth_table::{Hide, Sort, TruthTable, TruthTableOptions};
 use crate::routing::error::{Error, ErrorKind};
 use crate::routing::response::SimplifyResponse;
 
@@ -23,7 +23,7 @@ const fn default_true() -> bool {
 }
 
 #[derive(Deserialize)]
-struct QueryOptions {
+struct SimplifyOptions {
     #[serde(default = "default_true")]
     simplify: bool,
     #[serde(default = "default_true")]
@@ -31,42 +31,61 @@ struct QueryOptions {
 }
 
 // TODO
-async fn simplify(Path(path): Path<String>, query: Query<QueryOptions>) -> Response {
-    if let Ok(mut expression) = Expression::try_from(path.as_str()) {
-        let before = expression.to_string();
-        let mut operations = vec![];
-        if query.simplify {
-            (expression, operations) = expression.simplify();
+async fn simplify(Path(path): Path<String>, Query(query): Query<SimplifyOptions>) -> Response {
+    match Expression::try_from(path.as_str()) {
+        Ok(mut expression) => {
+            let before = expression.to_string();
+            let mut operations = vec![];
+            if query.simplify {
+                (expression, operations) = expression.simplify();
+            }
+            SimplifyResponse {
+                before,
+                after: expression.to_string(),
+                operations,
+                expression,
+                truth_table: None,
+            }.into_response()
         }
-        SimplifyResponse {
-            before,
-            after: expression.to_string(),
-            operations,
-            expression,
-            truth_table: None,
-        }.into_response()
-    } else {
-        (StatusCode::BAD_REQUEST, Error::new("Invalid expression", ErrorKind::InvalidExpression)).into_response()
+        Err(error) => {
+            (StatusCode::BAD_REQUEST, Error::new(error.to_string(), ErrorKind::InvalidExpression)).into_response()
+        }
     }
 }
 
-async fn simplify_and_table(Path(path): Path<String>, query: Query<QueryOptions>) -> Response {
-    if let Ok(mut expression) = Expression::try_from(path.as_str()) {
-        let before = expression.to_string();
-        let mut operations = vec![];
-        if query.simplify {
-            (expression, operations) = expression.simplify();
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SimplifyAndTableQuery {
+    #[serde(flatten)]
+    simplify_options: SimplifyOptions,
+    #[serde(default)]
+    sort: Sort,
+    #[serde(default)]
+    hide: Hide,
+}
+
+async fn simplify_and_table(Path(path): Path<String>, Query(query): Query<SimplifyAndTableQuery>) -> Response {
+    match Expression::try_from(path.as_str()) {
+        Ok(mut expression) => {
+            let before = expression.to_string();
+            let mut operations = vec![];
+            if query.simplify_options.simplify {
+                (expression, operations) = expression.simplify();
+            }
+            let truth_table = TruthTable::new(&expression, TruthTableOptions {
+                sort: query.sort,
+                hide: query.hide,
+            });
+            SimplifyResponse {
+                before,
+                after: expression.to_string(),
+                operations,
+                expression,
+                truth_table: Some(truth_table),
+            }.into_response()
         }
-        // TODO options
-        let truth_table = TruthTable::new(&expression, TruthTableOptions::default());
-        SimplifyResponse {
-            before,
-            after: expression.to_string(),
-            operations,
-            expression,
-            truth_table: Some(truth_table),
-        }.into_response()
-    } else {
-        (StatusCode::BAD_REQUEST, Error::new("Invalid expression", ErrorKind::InvalidExpression)).into_response()
+        Err(error) => {
+            (StatusCode::BAD_REQUEST, Error::new(error.to_string(), ErrorKind::InvalidExpression)).into_response()
+        }
     }
 }

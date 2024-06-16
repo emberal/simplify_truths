@@ -1,5 +1,5 @@
 .github
-spec
+spec/node_modules
 http
 target
 README.md

@@ -1,3 +1,11 @@
+### GET index page
+
+GET {{url}}
+
+### GET OpenAPI page
+
+GET {{url}}/openapi
+
 ### GET Atomic Expression
 GET {{url}}/simplify/A
 
@@ -40,6 +48,21 @@ GET {{url}}/simplify/!A
 %}
 GET {{url}}/simplify/{{expression}}
 
+### GET expression and don't simplify
+< {%
+    import {expression} from "./common";
+
+    expression("A & A")
+%}
+
+GET {{url}}/simplify/{{expression}}?simplify=false
+
+> {%
+    client.test("Response body is the same as the input", () => {
+        client.assert(response.body.after === response.body.before, "Response body is not the same as the input");
+    });
+%}
+
 ### GET with table
 < {%
     import {expression} from "./common";
@@ -47,3 +70,41 @@ GET {{url}}/simplify/{{expression}}
     expression("A & B | C")
 %}
 GET {{url}}/simplify/table/{{expression}}
+
+### GET with table sorted by true first
+< {%
+    import {expression} from "./common";
+
+    expression("A & B | C")
+%}
+GET {{url}}/simplify/table/{{expression}}?sort=TRUE_FIRST
+
+> {%
+    client.test("Response body is sorted by true first", () => {
+        const table = response.body.truthTable;
+        const results = table.truthMatrix.map(arr => arr[arr.length - 1])
+        const expected = results.slice() // Creates a copy of the array
+        expected.sort((a, b) => b - a)
+        for (let i = 0; i < results.length; i++) {
+            client.assert(results[i] === expected[i], "Response body is not sorted by true first")
+        }
+    });
+%}
+
+### GET with table and hide false values
+< {%
+    import {expression} from "./common";
+
+    expression("A & B | C")
+%}
+GET {{url}}/simplify/table/{{expression}}?hide=FALSE
+
+> {%
+    client.test("Response body does not contain false values", () => {
+        const table = response.body.truthTable;
+        const results = table.truthMatrix.map(arr => arr[arr.length - 1])
+        for (let i = 0; i < results.length; i++) {
+            client.assert(results[i] === true, "Response body contains false values")
+        }
+    });
+%}
