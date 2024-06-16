@@ -5,7 +5,6 @@ use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 
 use crate::expressions::expression::Expression;
-use crate::expressions::simplify::Simplify;
 use crate::expressions::truth_table::{Hide, Sort, TruthTable, TruthTableOptions};
 use crate::routing::error::{Error, ErrorKind};
 use crate::routing::response::SimplifyResponse;
@@ -36,13 +35,14 @@ async fn simplify(Path(path): Path<String>, Query(query): Query<SimplifyOptions>
     match Expression::try_from(path.as_str()) {
         Ok(mut expression) => {
             let before = expression.to_string();
+            let mut operations = vec![];
             if query.simplify {
-                expression = expression.simplify();
+                (expression, operations) = expression.simplify();
             }
             SimplifyResponse {
                 before,
                 after: expression.to_string(),
-                order_of_operations: vec![], // TODO
+                operations,
                 expression,
                 truth_table: None,
             }.into_response()
@@ -68,8 +68,9 @@ async fn simplify_and_table(Path(path): Path<String>, Query(query): Query<Simpli
     match Expression::try_from(path.as_str()) {
         Ok(mut expression) => {
             let before = expression.to_string();
+            let mut operations = vec![];
             if query.simplify_options.simplify {
-                expression = expression.simplify();
+                (expression, operations) = expression.simplify();
             }
             let truth_table = TruthTable::new(&expression, TruthTableOptions {
                 sort: query.sort,
@@ -78,7 +79,7 @@ async fn simplify_and_table(Path(path): Path<String>, Query(query): Query<Simpli
             SimplifyResponse {
                 before,
                 after: expression.to_string(),
-                order_of_operations: vec![], // TODO
+                operations,
                 expression,
                 truth_table: Some(truth_table),
             }.into_response()

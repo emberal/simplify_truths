@@ -3,6 +3,7 @@ use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 
 use crate::expressions::expression::Expression;
+use crate::expressions::simplify::Law;
 use crate::expressions::truth_table::TruthTable;
 
 #[derive(Serialize)]
@@ -27,16 +28,21 @@ impl<T: Serialize> IntoResponse for BaseResponse<T> {
     }
 }
 
-#[derive(Serialize)]
-enum Law {
-    // TODO
+#[derive(Debug, PartialEq, Serialize)]
+pub struct Operation {
+    pub before: String,
+    pub after: String,
+    pub law: Law,
 }
 
-#[derive(Serialize)]
-pub struct OrderOfOperation {
-    before: String,
-    after: String,
-    law: Law, // TODO
+impl Operation {
+    pub fn new(before: &Expression, after: &Expression, law: Law) -> Option<Self> {
+        if *before != *after {
+            Some(Self { before: before.to_string(), after: after.to_string(), law })
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -44,7 +50,7 @@ pub struct OrderOfOperation {
 pub struct SimplifyResponse {
     pub before: String,
     pub after: String,
-    pub order_of_operations: Vec<OrderOfOperation>,
+    pub operations: Vec<Operation>,
     pub expression: Expression,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub truth_table: Option<TruthTable>,
