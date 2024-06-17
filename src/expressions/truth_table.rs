@@ -38,7 +38,7 @@ pub enum Sort {
 impl TruthTable {
     pub fn new(expression: &Expression, options: TruthTableOptions) -> Self {
         let header = Self::extract_header(expression);
-        let mut truth_matrix = Self::generate_truth_matrix(expression, &header, options.hide);
+        let mut truth_matrix = Self::generate_truth_matrix(expression, &header, options.hide, options.hide_intermediate_steps);
         if !matches!(options.sort, Sort::Default) {
             Self::sort_matrix(&mut truth_matrix, options.sort);
         }
@@ -85,7 +85,7 @@ impl TruthTable {
         }
     }
 
-    fn generate_truth_matrix(expression: &Expression, header: &[String], hide: Hide) -> TruthMatrix {
+    fn generate_truth_matrix(expression: &Expression, header: &[String], hide: Hide, hide_intermediate: bool) -> TruthMatrix {
         let mut atomics = expression.get_atomic_values()
             .into_iter().collect::<Vec<String>>();
         if atomics.is_empty() {
@@ -97,7 +97,7 @@ impl TruthTable {
                 let expression = Self::resolve_expression(expression, &atomics.iter()
                     .enumerate()
                     .map(|(index, value)| (value.clone(), combo[index]))
-                    .collect(), header);
+                    .collect(), header, hide_intermediate);
                 match (hide, expression.last()) {
                     (Hide::True, Some(false)) => Some(expression),
                     (Hide::False, Some(true)) => Some(expression),
@@ -115,14 +115,30 @@ impl TruthTable {
             ).collect()
     }
 
-    fn resolve_expression(expression: &Expression, booleans: &HashMap<String, bool>, header: &[String]) -> Vec<bool> {
-        let expression_map = Self::_resolve_expression(expression, booleans);
+    fn resolve_expression(expression: &Expression, booleans: &HashMap<String, bool>, header: &[String], hide_intermediate: bool) -> Vec<bool> {
+        let mut expression_map = Self::_resolve_expression(expression, booleans);
+        if hide_intermediate {
+            expression_map = Self::remove_intermediate_steps(expression_map);
+        }
         let string_map = expression_map.iter()
             .map(|(key, value)| (key.to_string(), *value))
             .collect::<HashMap<String, bool>>();
 
         header.iter()
-            .map(|s_expr| string_map.get(s_expr).copied().expect("Expression not found in map"))
+            .filter_map(|s_expr| string_map.get(s_expr).copied())
+            .collect()
+    }
+
+    fn remove_intermediate_steps(expression_map: HashMap<&Expression, bool>) -> HashMap<&Expression, bool> {
+        expression_map.iter()
+            .enumerate()
+            .filter_map(|(index, (key, value))| {
+                if key.is_atomic() || index == expression_map.len() - 1 {
+                    Some((*key, *value))
+                } else {
+                    None
+                }
+            })
             .collect()
     }
 
@@ -279,7 +295,7 @@ mod tests {
         let matrix = TruthTable::generate_truth_matrix(
             &and(atomic("A"), atomic("B")),
             &["A".into(), "B".into(), "A ⋀ B".into()],
-            Hide::True,
+            Hide::True, false,
         );
         assert_eq!(expected, matrix);
     }
@@ -292,7 +308,7 @@ mod tests {
         let matrix = TruthTable::generate_truth_matrix(
             &and(atomic("A"), atomic("B")),
             &["A".into(), "B".into(), "A ⋀ B".into()],
-            Hide::False,
+            Hide::False, false,
         );
         assert_eq!(expected, matrix);
     }
@@ -308,7 +324,7 @@ mod tests {
         let matrix = TruthTable::generate_truth_matrix(
             &and(atomic("A"), atomic("B")),
             &["A".into(), "B".into(), "A ⋀ B".into()],
-            Hide::None,
+            Hide::None, false,
         );
         assert_eq!(expected, matrix);
     }
@@ -340,11 +356,21 @@ mod tests {
     }
 
     #[test]
+    fn test_resolve_expression_hide_intermediate_steps() {
+        let expression = and(atomic("A"), or(atomic("B"), atomic("C")));
+        let booleans = map!["A".into() => true, "B".into() => false, "C".into() => true];
+        let header = vec!["A".into(), "B".into(), "C".into(), "B ⋁ C".into(), "A ⋀ (B ⋁ C)".into()];
+        let values = TruthTable::resolve_expression(&expression, &booleans, &header, true);
+        assert_eq!(values.len(), 4);
+        assert_eq!(values, vec![true, false, true, true]);
+    }
+
+    #[test]
     fn test_resolve_expression_and_all_true() {
         let expression = and(atomic("A"), atomic("B"));
         let booleans = map!["A".into() => true, "B".into() => true];
         let header = vec!["A".into(), "B".into(), "A ⋀ B".into()];
-        let values = TruthTable::resolve_expression(&expression, &booleans, &header);
+        let values = TruthTable::resolve_expression(&expression, &booleans, &header, false);
         assert_eq!(values, vec![true, true, true]);
     }
 
@@ -353,7 +379,7 @@ mod tests {
         let expression = and(atomic("A"), atomic("B"));
         let booleans = map!["A".into() => true, "B".into() => false];
         let header = vec!["A".into(), "B".into(), "A ⋀ B".into()];
-        let values = TruthTable::resolve_expression(&expression, &booleans, &header);
+        let values = TruthTable::resolve_expression(&expression, &booleans, &header, false);
         assert_eq!(values, vec![true, false, false]);
     }
 
@@ -362,7 +388,7 @@ mod tests {
         let expression = or(atomic("A"), atomic("B"));
         let booleans = map!["A".into() => true, "B".into() => false];
         let header = vec!["A".into(), "B".into(), "A ⋁ B".into()];
-        let values = TruthTable::resolve_expression(&expression, &booleans, &header);
+        let values = TruthTable::resolve_expression(&expression, &booleans, &header, false);
         assert_eq!(values, vec![true, false, true]);
     }
 
@@ -371,7 +397,7 @@ mod tests {
         let expression = and(atomic("A"), atomic("A"));
         let booleans = map!["A".into() => true];
         let header = vec!["A".into(), "A ⋀ A".into()];
-        let values = TruthTable::resolve_expression(&expression, &booleans, &header);
+        let values = TruthTable::resolve_expression(&expression, &booleans, &header, false);
         assert_eq!(values, vec![true, true]);
     }
 
@@ -380,7 +406,7 @@ mod tests {
         let expression = and(atomic("A"), and(atomic("A"), and(atomic("A"), atomic("A"))));
         let booleans = HashMap::from([("A".into(), true)]);
         let header = vec!["A".into(), "A ⋀ A".into(), "A ⋀ A ⋀ A".into(), "A ⋀ A ⋀ A ⋀ A".into()];
-        let values = TruthTable::resolve_expression(&expression, &booleans, &header);
+        let values = TruthTable::resolve_expression(&expression, &booleans, &header, false);
         assert_eq!(values, vec![true, true, true, true]);
     }
 
