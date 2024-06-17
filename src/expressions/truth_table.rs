@@ -37,10 +37,13 @@ pub enum Sort {
 
 impl TruthTable {
     pub fn new(expression: &Expression, options: TruthTableOptions) -> Self {
-        let header = Self::extract_header(expression);
+        let mut header = Self::extract_header(expression);
         let mut truth_matrix = Self::generate_truth_matrix(expression, &header, options.hide, options.hide_intermediate_steps);
         if !matches!(options.sort, Sort::Default) {
             Self::sort_matrix(&mut truth_matrix, options.sort);
+        }
+        if options.hide_intermediate_steps {
+            header = Self::remove_non_atomic_from_header(&header);
         }
         Self { header, truth_matrix }
     }
@@ -51,6 +54,23 @@ impl TruthTable {
             Sort::FalseFirst => row_a.last().cmp(&row_b.last()),
             Sort::Default => Ordering::Equal,
         })
+    }
+
+    fn remove_non_atomic_from_header(header: &[String]) -> Vec<String> {
+        header.iter()
+            .enumerate()
+            .filter_map(|(index, s)| {
+                if !Self::contains_operator(s) || index == header.len() - 1 {
+                    Some(s.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    fn contains_operator(slice: &str) -> bool {
+        slice.contains('⋀') || slice.contains('⋁') || slice.contains('➔')
     }
 
     /// Extracts the header for the truth table from the expression
@@ -116,9 +136,13 @@ impl TruthTable {
     }
 
     fn resolve_expression(expression: &Expression, booleans: &HashMap<String, bool>, header: &[String], hide_intermediate: bool) -> Vec<bool> {
+        let Some(last_expression) = header.last() else {
+            return vec![];
+        };
+
         let mut expression_map = Self::_resolve_expression(expression, booleans);
         if hide_intermediate {
-            expression_map = Self::remove_intermediate_steps(expression_map);
+            expression_map = Self::remove_intermediate_steps(expression_map, last_expression);
         }
         let string_map = expression_map.iter()
             .map(|(key, value)| (key.to_string(), *value))
@@ -129,11 +153,10 @@ impl TruthTable {
             .collect()
     }
 
-    fn remove_intermediate_steps(expression_map: HashMap<&Expression, bool>) -> HashMap<&Expression, bool> {
+    fn remove_intermediate_steps<'a>(expression_map: HashMap<&'a Expression, bool>, top_level_expression: &'a str) -> HashMap<&'a Expression, bool> {
         expression_map.iter()
-            .enumerate()
-            .filter_map(|(index, (key, value))| {
-                if key.is_atomic() || index == expression_map.len() - 1 {
+            .filter_map(|(key, value)| {
+                if key.is_atomic() || key.to_string() == top_level_expression {
                     Some((*key, *value))
                 } else {
                     None
@@ -215,6 +238,19 @@ mod tests {
         assert_eq!(truth_table.truth_matrix[5], vec![false, false, false, true, true, false]);
         assert_eq!(truth_table.truth_matrix[6], vec![false, true, true, false, true, true]);
         assert_eq!(truth_table.truth_matrix[7], vec![false, false, false, false, false, false]);
+    }
+
+    #[test]
+    fn test_new_truth_table_and_hide_intermediate_steps() {
+        let expression = and(atomic("A"), or(atomic("B"), atomic("C")));
+        let truth_table = TruthTable::new(&expression, TruthTableOptions {
+            hide_intermediate_steps: true,
+            ..Default::default()
+        });
+        assert_eq!(truth_table.header, vec!["A", "B", "C", "A ⋀ (B ⋁ C)"]);
+        for (index, row) in truth_table.truth_matrix.iter().enumerate() {
+            assert_eq!(row.len(), 4, "Row at {index}: {:?}", row);
+        }
     }
 
     #[test]

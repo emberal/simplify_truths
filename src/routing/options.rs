@@ -20,8 +20,8 @@ pub struct TruthTableOptions {
     pub sort: Sort,
     #[serde(default)]
     pub hide: Hide,
-    #[serde(default)]
-    pub hide_intermediate_steps: bool, // TODO: Implement hide intermediate steps
+    #[serde(default, deserialize_with = "deserialize_bool")]
+    pub hide_intermediate_steps: bool,
 }
 
 #[derive(Deserialize)]
