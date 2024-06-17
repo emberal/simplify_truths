@@ -4,7 +4,6 @@ use std::rc::Rc;
 
 use serde::{Deserialize, Serialize};
 
-use crate::expressions::iterator::ExpressionIterator;
 use crate::expressions::operator::BinaryOperator;
 use crate::parsing::expression_parser::parse_expression;
 
@@ -40,19 +39,6 @@ impl Expression {
             Expression::Atomic(value) => HashSet::from([value.clone()])
         }
     }
-
-    pub fn iter(&self) -> ExpressionIterator {
-        ExpressionIterator::new(self.clone())
-    }
-}
-
-impl IntoIterator for Expression {
-    type Item = Rc<Expression>;
-    type IntoIter = ExpressionIterator;
-
-    fn into_iter(self) -> Self::IntoIter {
-        ExpressionIterator::new(self)
-    }
 }
 
 impl OppositeEq for Expression {
@@ -83,20 +69,27 @@ impl TryFrom<String> for Expression {
 
 impl Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Expression::Not(expr) if expr.is_atomic() => write!(f, "¬{expr}"),
-            Expression::Not(expr) => write!(f, "¬({expr})"),
-            Expression::Binary { left, operator: BinaryOperator::And, right } => {
-                write!(f, "{left} ⋀ {right}")
+        return write!(f, "{}", fmt_helper(self, None));
+
+        fn fmt_helper(expression: &Expression, parent: Option<&Expression>) -> String {
+            match expression {
+                Expression::Not(expr) if expr.is_atomic() => format!("¬{}", fmt_helper(expr, Some(expression))),
+                Expression::Not(expr) => format!("¬({})", fmt_helper(expr, Some(expression))),
+                Expression::Binary { left, operator: BinaryOperator::And, right } => {
+                    format!("{} ⋀ {}", fmt_helper(left, Some(expression)), fmt_helper(right, Some(expression)))
+                }
+                Expression::Binary { left, operator: BinaryOperator::Or, right } => {
+                    if parent.is_none() || matches!(parent, Some(Expression::Binary { operator: BinaryOperator::Or, .. })) {
+                        format!("{} ⋁ {}", fmt_helper(left, Some(expression)), fmt_helper(right, Some(expression)))
+                    } else {
+                        format!("({} ⋁ {})", fmt_helper(left, Some(expression)), fmt_helper(right, Some(expression)))
+                    }
+                }
+                Expression::Binary { left, operator: BinaryOperator::Implication, right } => {
+                    format!("{} ➔ {}", fmt_helper(left, Some(expression)), fmt_helper(right, Some(expression)))
+                }
+                Expression::Atomic(value) => value.clone(),
             }
-            // TODO do not use parentheses on root level or if several operators are on the same level
-            Expression::Binary { left, operator: BinaryOperator::Or, right } => {
-                write!(f, "({left} ⋁ {right})")
-            }
-            Expression::Binary { left, operator: BinaryOperator::Implication, right } => {
-                write!(f, "{left} ➔ {right}")
-            }
-            Expression::Atomic(value) => write!(f, "{value}"),
         }
     }
 }
@@ -116,9 +109,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_expression_a_or_b_and_c_display() {
-        // TODO
         let expression = or(
             atomic("a"),
             and(
@@ -126,6 +117,57 @@ mod tests {
                 atomic("c"),
             ));
         assert_eq!(expression.to_string(), "a ⋁ b ⋀ c");
+    }
+
+    #[test]
+    fn test_expression_a_or_b() {
+        let expression = or(
+            atomic("a"),
+            atomic("b"),
+        );
+        assert_eq!(expression.to_string(), "a ⋁ b");
+    }
+
+    #[test]
+    fn test_expression_double_or() {
+        let expression = or(
+            atomic("a"),
+            or(
+                atomic("b"),
+                atomic("c"),
+            ),
+        );
+        assert_eq!(expression.to_string(), "a ⋁ b ⋁ c");
+    }
+
+    #[test]
+    fn test_expression_triple_or() {
+        let expression = or(
+            atomic("a"),
+            or(
+                atomic("b"),
+                or(
+                    atomic("c"),
+                    atomic("d"),
+                ),
+            ),
+        );
+        assert_eq!(expression.to_string(), "a ⋁ b ⋁ c ⋁ d");
+    }
+
+    #[test]
+    fn test_expression_nested_parenthesized_or() {
+        let expression = or(
+            atomic("a"),
+            and(
+                atomic("b"),
+                or(
+                    atomic("b"),
+                    atomic("c"),
+                ),
+            ),
+        );
+        assert_eq!(expression.to_string(), "a ⋁ b ⋀ (b ⋁ c)");
     }
 
     #[test]

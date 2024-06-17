@@ -3,4 +3,3 @@ pub mod operator;
 pub mod helpers;
 pub mod simplify;
 pub mod truth_table;
-mod iterator;

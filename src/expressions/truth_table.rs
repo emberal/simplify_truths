@@ -188,7 +188,7 @@ mod tests {
         let truth_table = TruthTable::new(&expression, Default::default());
         let atomics = 3;
 
-        assert_eq!(truth_table.header, vec!["A", "C", "(A ⋁ C)", "B", "(B ⋁ C)", "(A ⋁ C) ⋀ (B ⋁ C)"]);
+        assert_eq!(truth_table.header, vec!["A", "C", "A ⋁ C", "B", "B ⋁ C", "(A ⋁ C) ⋀ (B ⋁ C)"]);
         assert_eq!(truth_table.truth_matrix.len(), 2usize.pow(atomics as u32));
         assert_eq!(truth_table.truth_matrix[0].len(), 6);
         assert_eq!(truth_table.truth_matrix[0], vec![true, true, true, true, true, true]);
@@ -361,7 +361,7 @@ mod tests {
     fn test_resolve_expression_or_1_true_1_false() {
         let expression = or(atomic("A"), atomic("B"));
         let booleans = map!["A".into() => true, "B".into() => false];
-        let header = vec!["A".into(), "B".into(), "(A ⋁ B)".into()];
+        let header = vec!["A".into(), "B".into(), "A ⋁ B".into()];
         let values = TruthTable::resolve_expression(&expression, &booleans, &header);
         assert_eq!(values, vec![true, false, true]);
     }
@@ -423,7 +423,7 @@ mod tests {
     fn test_binary_or_expression() {
         let expression = or(atomic("A"), atomic("B"));
         let header = TruthTable::extract_header(&expression);
-        assert_eq!(header, vec!["A", "B", "(A ⋁ B)"]);
+        assert_eq!(header, vec!["A", "B", "A ⋁ B"]);
     }
 
     #[test]
@@ -437,7 +437,7 @@ mod tests {
     fn test_complex_expression() {
         let expression = implies(and(atomic("A"), atomic("B")), or(atomic("C"), atomic("D")));
         let header = TruthTable::extract_header(&expression);
-        assert_eq!(header, vec!["A", "B", "A ⋀ B", "C", "D", "(C ⋁ D)", "A ⋀ B ➔ (C ⋁ D)"]);
+        assert_eq!(header, vec!["A", "B", "A ⋀ B", "C", "D", "C ⋁ D", "A ⋀ B ➔ (C ⋁ D)"]);
     }
 
     #[test]
@@ -451,6 +451,6 @@ mod tests {
     fn test_somewhat_equal() {
         let expression = and(atomic("A"), and(or(not(atomic("A")), atomic("B")), atomic("A")));
         let header = TruthTable::extract_header(&expression);
-        assert_eq!(header, vec!["A", "¬A", "B", "(¬A ⋁ B)", "(¬A ⋁ B) ⋀ A", "A ⋀ (¬A ⋁ B) ⋀ A"]);
+        assert_eq!(header, vec!["A", "¬A", "B", "¬A ⋁ B", "(¬A ⋁ B) ⋀ A", "A ⋀ (¬A ⋁ B) ⋀ A"]);
     }
 }

@@ -271,7 +271,7 @@ mod tests {
         assert_eq!(operations.len(), 1);
         assert_eq!(operations[0].law, Law::EliminationOfImplication);
         assert_eq!(operations[0].before, "a ➔ b");
-        assert_eq!(operations[0].after, "(¬a ⋁ b)");
+        assert_eq!(operations[0].after, "¬a ⋁ b");
     }
 
     #[test]
@@ -282,10 +282,10 @@ mod tests {
         assert_eq!(operations.len(), 2);
         assert_eq!(operations[0].law, Law::EliminationOfImplication);
         assert_eq!(operations[0].before, "b ➔ c");
-        assert_eq!(operations[0].after, "(¬b ⋁ c)");
+        assert_eq!(operations[0].after, "¬b ⋁ c");
         assert_eq!(operations[1].law, Law::EliminationOfImplication);
         assert_eq!(operations[1].before, "a ➔ b ➔ c");
-        assert_eq!(operations[1].after, "(¬a ⋁ (¬b ⋁ c))");
+        assert_eq!(operations[1].after, "¬a ⋁ ¬b ⋁ c");
     }
 
     #[test]
@@ -362,7 +362,7 @@ mod tests {
         assert_eq!(operations.len(), 1);
         assert_eq!(operations[0].law, Law::DeMorgansLaws);
         assert_eq!(operations[0].before, "¬(a ⋀ b)");
-        assert_eq!(operations[0].after, "(¬a ⋁ ¬b)");
+        assert_eq!(operations[0].after, "¬a ⋁ ¬b");
     }
 
     #[test]
