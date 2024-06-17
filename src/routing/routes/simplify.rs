@@ -1,22 +1,18 @@
-use axum::{Router, routing::get};
 use axum::extract::{Path, Query};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 
 use crate::expressions::expression::Expression;
 use crate::expressions::truth_table::TruthTable;
+use crate::{router, routes};
 use crate::routing::error::{Error, ErrorKind};
 use crate::routing::options::{SimplifyAndTableOptions, SimplifyOptions};
 use crate::routing::response::SimplifyResponse;
 
-pub fn router() -> Router<()> {
-    Router::new()
-        .nest("/simplify",
-              Router::new()
-                  .route("/:exp", get(simplify))
-                  .route("/table/:exp", get(simplify_and_table)),
-        )
-}
+router!("/simplify", routes!(
+    get "/:exp" => simplify,
+    get "/table/:exp" => simplify_and_table
+));
 
 async fn simplify(Path(path): Path<String>, Query(query): Query<SimplifyOptions>) -> Response {
     match Expression::try_from(path.as_str()) {

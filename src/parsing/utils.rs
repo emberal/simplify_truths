@@ -12,8 +12,9 @@ use nom::sequence::{delimited, terminated};
 ///    - `inner`: The parser to trim
 /// - Returns: A parser that trims leading and trailing whitespace from the input and then runs the value from the inner parser
 pub fn trim<'a, Parser, R>(inner: Parser) -> impl FnMut(&'a str) -> IResult<&'a str, R>
-    where
-        Parser: Fn(&'a str) -> IResult<&'a str, R> {
+where
+    Parser: Fn(&'a str) -> IResult<&'a str, R>,
+{
     delimited(
         multispace0,
         inner,
@@ -27,8 +28,9 @@ pub fn trim<'a, Parser, R>(inner: Parser) -> impl FnMut(&'a str) -> IResult<&'a 
 ///     - `inner`: The parser to run inside the parentheses
 /// - Returns: A parser that parses a parenthesized expression
 pub fn parenthesized<'a, Parser, R>(inner: Parser) -> impl FnMut(&'a str) -> IResult<&'a str, R>
-    where
-        Parser: Fn(&'a str) -> IResult<&'a str, R> {
+where
+    Parser: Fn(&'a str) -> IResult<&'a str, R>,
+{
     delimited(
         char('('),
         trim(inner),
@@ -42,15 +44,19 @@ pub fn parenthesized<'a, Parser, R>(inner: Parser) -> impl FnMut(&'a str) -> IRe
 ///   - `predicate`: The predicate to call to validate the input
 /// - Returns: A parser that takes `n` characters from the input
 pub fn take_where<F, Input, Error: ParseError<Input>>(n: usize, predicate: F) -> impl Fn(Input) -> IResult<Input, Input, Error>
-    where Input: InputTake + InputIter + InputLength + Slice<RangeFrom<usize>>, F: Fn(<Input as InputIter>::Item) -> bool, {
+where
+    Input: InputTake + InputIter + InputLength + Slice<RangeFrom<usize>>,
+    F: Fn(<Input as InputIter>::Item) -> bool,
+{
     move |input: Input| {
         take_while_m_n(n, n, |it| predicate(it))(input)
     }
 }
 
 pub fn exhausted<'a, Parser, R>(inner: Parser) -> impl FnMut(&'a str) -> IResult<&'a str, R>
-    where
-        Parser: Fn(&'a str) -> IResult<&'a str, R> {
+where
+    Parser: Fn(&'a str) -> IResult<&'a str, R>,
+{
     terminated(inner, eof)
 }
 

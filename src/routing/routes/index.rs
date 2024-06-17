@@ -1,16 +1,15 @@
 use axum::body::Body;
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse, Response};
-use axum::Router;
-use axum::routing::get;
 use tokio::fs::File;
 use tokio_util::io::ReaderStream;
 
-pub fn router() -> Router {
-    Router::new()
-        .route("/", get(index))
-        .route("/openapi", get(open_api))
-}
+use crate::router;
+
+router!(
+    get "/" => index,
+    get "/openapi" => open_api
+);
 
 async fn index() -> &'static str {
     "Welcome to the Simplify Truths API!\n"
