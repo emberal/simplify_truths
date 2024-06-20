@@ -65,3 +65,32 @@ pub async fn load_html(file_path: &str) -> Result<Html<Body>, String> {
     let stream = ReaderStream::new(file);
     Ok(Html(Body::from_stream(stream)))
 }
+
+#[macro_export]
+macro_rules! load_html {
+    ($filename:literal) => {
+        axum::response::Html(
+            axum::body::Body::new(
+                $crate::absolute_path!($filename)
+            )
+        )
+    };
+}
+
+#[macro_export]
+#[cfg(debug_assertions)]
+macro_rules! absolute_path {
+    ($filename:literal) => {
+        include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/resources/static/", $filename))
+            .replace("{{docs}}", "/openapi")
+    };
+}
+
+#[macro_export]
+#[cfg(not(debug_assertions))]
+macro_rules! absolute_path {
+    ($filename:literal) => {
+        include_str!(concat!("/static/", $filename))
+            .replace("{{docs}}", "simplify-truths/v2/openapi")
+    };
+}

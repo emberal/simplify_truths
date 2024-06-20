@@ -2,6 +2,10 @@
 
 GET {{url}}
 
+### GET index page on HTTP/2
+
+GET {{url}} HTTP/2
+
 ### GET OpenAPI page
 
 GET {{url}}/openapi

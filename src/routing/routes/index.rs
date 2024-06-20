@@ -2,11 +2,10 @@ use axum::extract::Path;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 
+use crate::{load_html, router};
 use crate::expressions::expression::Expression;
-use crate::router;
 use crate::routing::error::{Error, ErrorKind};
 use crate::routing::response::IsLegalResponse;
-use crate::utils::axum::load_html;
 
 router!(
     get "/" => index,
@@ -19,10 +18,7 @@ async fn index() -> &'static str {
 }
 
 async fn open_api() -> Response {
-    match load_html("openapi.html").await {
-        Ok(html) => html.into_response(),
-        Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, err).into_response()
-    }
+    load_html!("openapi.html").into_response()
 }
 
 async fn is_valid(Path(path): Path<String>) -> Response {
@@ -33,8 +29,5 @@ async fn is_valid(Path(path): Path<String>) -> Response {
 }
 
 pub(crate) async fn not_found() -> Response {
-    match load_html("not-found.html").await {
-        Ok(html) => (StatusCode::NOT_FOUND, html).into_response(),
-        Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, err).into_response()
-    }
+    (StatusCode::NOT_FOUND, load_html!("not-found.html")).into_response()
 }
