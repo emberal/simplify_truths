@@ -7,7 +7,6 @@ use tower_http::trace::TraceLayer;
 use tracing::Level;
 
 use crate::routing::routes::*;
-use crate::routing::routes::index::not_found;
 
 mod expressions;
 mod parsing;
@@ -27,19 +26,18 @@ async fn main() {
         .compact()
         .init();
 
-    let routes = simplify::router()
-        .merge(table::router())
-        .merge(index::router())
-        .fallback(not_found);
+    let routes = join_routes![
+        simplify::router(),
+        index::router(),
+        table::router()
+    ].fallback(index::not_found);
 
-    let app = routes
-        .layer(CorsLayer::new().allow_origin(Any))
-        .layer(TraceLayer::new_for_http()
-            .make_span_with(trace::DefaultMakeSpan::new()
-                .level(Level::INFO))
-            .on_response(trace::DefaultOnResponse::new()
-                .level(Level::INFO))
-        );
+    let app = create_app!(routes,
+        CorsLayer::new().allow_origin(Any),
+        TraceLayer::new_for_http()
+            .make_span_with(trace::DefaultMakeSpan::new().level(Level::INFO))
+            .on_response(trace::DefaultOnResponse::new().level(Level::INFO))
+    );
 
     tracing::info!("Starting server on: {addr}");
 

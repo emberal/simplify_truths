@@ -59,8 +59,17 @@ pub struct SimplifyResponse {
 
 #[derive(Serialize, IntoResponse)]
 #[serde(rename_all = "camelCase")]
-pub struct IsLegalResponse {
-    pub is_legal: bool,
+pub(crate) struct IsValidResponse {
+    pub is_valid: bool,
+}
+
+impl IsValidResponse {
+    pub const fn valid() -> Self {
+        Self { is_valid: true }
+    }
+    pub const fn invalid() -> Self {
+        Self { is_valid: false }
+    }
 }
 
 #[derive(Serialize, IntoResponse)]

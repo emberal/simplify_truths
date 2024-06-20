@@ -48,6 +48,20 @@ macro_rules! routes {
     };
 }
 
+#[macro_export]
+macro_rules! join_routes {
+    ($($route:expr),* $(,)?) => {
+        axum::Router::new()$(.merge($route))*
+    };
+}
+
+#[macro_export]
+macro_rules! create_app {
+    ($router:expr, $($layer:expr),* $(,)?) => {
+        $router$(.layer($layer))*
+    };
+}
+
 /// Load an HTML file from the given file path, relative to the resource directory.
 /// # Arguments
 /// * `file_path` - The path to the HTML file.
