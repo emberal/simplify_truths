@@ -19,6 +19,44 @@ pub enum Law {
     CommutativeLaw,
 }
 
+#[macro_export]
+macro_rules! absorption_law_opposites {
+    ($left:expr, $right:expr, $operations:expr, $op:pat, $func:expr) => {
+        match ($left.as_ref(), $right.as_ref()) {
+            (_, Expression::Binary { left: right_left, operator: $op, right: right_right }) => {
+                evaluate_equals_or_opposites($left.as_ref(), right_left, right_right, $func, $operations).unwrap_or(
+                    $func($left.absorption_law($operations), $right.absorption_law($operations))
+                )
+            }
+            (Expression::Binary { left: left_left, operator: $op, right: left_right }, _) => {
+                evaluate_equals_or_opposites($right.as_ref(), left_left, left_right, $func, $operations).unwrap_or(
+                    $func($left.absorption_law($operations), $right.absorption_law($operations))
+                )
+            }
+            (left, right) => $func(left.absorption_law($operations), right.absorption_law($operations))
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! distribution_law_atomic_vs_binary {
+    ($left:expr, $right:expr, $operations:expr, $op:pat, $func1:expr, $func2:expr) => {
+        match ($left.as_ref(), $right.as_ref()) {
+            (Expression::Atomic(_), Expression::Binary { left: right_left, operator: $op, right: right_right }) => {
+                let right_left = right_left.distribution_law($operations);
+                let right_right = right_right.distribution_law($operations);
+                $func1($func2($left.clone(), right_left), $func2($left.clone(), right_right))
+            }
+            (Expression::Binary { left: left_left, operator: $op, right: left_right }, Expression::Atomic(_)) => {
+                let left_left = left_left.distribution_law($operations);
+                let left_right = left_right.distribution_law($operations);
+                $func1($func2(left_left, $right.clone()), $func2(left_right, $right.clone()))
+            }
+            (left, right) => $func2(left.distribution_law($operations), right.distribution_law($operations))
+        }
+    };
+}
+
 // TODO deduplicate code
 impl Expression {
     // TODO better track of operations
@@ -86,15 +124,14 @@ impl Expression {
         let result = match self {
             Expression::Not(expr) => {
                 match expr.deref() {
-                    Expression::Binary { left, operator: BinaryOperator::And, right } => {
+                    Expression::Binary { left, operator: operator @ (BinaryOperator::And | BinaryOperator::Or), right } => {
                         let left = not(left.de_morgans_laws(operations));
                         let right = not(right.de_morgans_laws(operations));
-                        or(left, right).de_morgans_laws(operations)
-                    }
-                    Expression::Binary { left, operator: BinaryOperator::Or, right } => {
-                        let left = not(left.de_morgans_laws(operations));
-                        let right = not(right.de_morgans_laws(operations));
-                        and(left, right).de_morgans_laws(operations)
+                        if let BinaryOperator::And = operator {
+                            or(left, right)
+                        } else {
+                            and(left, right)
+                        }.de_morgans_laws(operations)
                     }
                     _ => not(expr.de_morgans_laws(operations)),
                 }
@@ -114,45 +151,20 @@ impl Expression {
 
     fn absorption_law(&self, operations: &mut Vec<Operation>) -> Self {
         let result = match self {
-            Expression::Binary { left, operator: BinaryOperator::And | BinaryOperator::Or, right } if *left == *right => {
+            Expression::Binary { left, operator: BinaryOperator::And | BinaryOperator::Or, right } if left == right => {
                 left.absorption_law(operations)
             }
             Expression::Binary { left, operator: BinaryOperator::And, right } => {
-                let (left_ref, right_ref) = (left.as_ref(), right.as_ref());
-                match (left_ref, right_ref) {
-                    (_, Expression::Binary { left: right_left, operator: BinaryOperator::Or, right: right_right }) => {
-                        evaluate_equals_or_opposites(left_ref, right_left, right_right, and, operations).unwrap_or(
-                            and(left.absorption_law(operations), right.absorption_law(operations))
-                        )
-                    }
-                    (Expression::Binary { left: left_left, operator: BinaryOperator::Or, right: left_right }, _) => {
-                        evaluate_equals_or_opposites(right_ref, left_left, left_right, and, operations).unwrap_or(
-                            and(left.absorption_law(operations), right.absorption_law(operations))
-                        )
-                    }
-                    (left, right) => and(left.absorption_law(operations), right.absorption_law(operations))
-                }
+                absorption_law_opposites!(left, right, operations, BinaryOperator::Or, and)
             }
             Expression::Binary { left, operator: BinaryOperator::Or, right } => {
-                match (left.as_ref(), right.as_ref()) {
-                    (_, Expression::Binary { left: right_left, operator: BinaryOperator::And, right: right_right }) => {
-                        evaluate_equals_or_opposites(left.as_ref(), right_left, right_right, or, operations).unwrap_or(
-                            or(left.absorption_law(operations), right.absorption_law(operations))
-                        )
-                    }
-                    (Expression::Binary { left: left_left, operator: BinaryOperator::And, right: left_right }, _) => {
-                        evaluate_equals_or_opposites(right.as_ref(), left_left, left_right, or, operations).unwrap_or(
-                            or(left.absorption_law(operations), right.absorption_law(operations))
-                        )
-                    }
-                    (left, right) => or(left.absorption_law(operations), right.absorption_law(operations))
-                }
+                absorption_law_opposites!(left, right, operations, BinaryOperator::And, or)
             }
-            Expression::Binary { left, operator, right } => {
-                let left = left.absorption_law(operations);
-                let right = right.absorption_law(operations);
-                binary(left, *operator, right)
-            }
+            Expression::Binary { left, operator, right } => binary(
+                left.absorption_law(operations),
+                *operator,
+                right.absorption_law(operations),
+            ),
             Expression::Not(expr) => not(expr.absorption_law(operations)),
             atomic => atomic.clone(),
         };
@@ -169,40 +181,16 @@ impl Expression {
     fn distribution_law(&self, operations: &mut Vec<Operation>) -> Self {
         let result = match self {
             Expression::Binary { left, operator: BinaryOperator::And, right } => {
-                match (left.as_ref(), right.as_ref()) {
-                    (Expression::Atomic(_), Expression::Binary { left: right_left, operator: BinaryOperator::Or, right: right_right }) => {
-                        let right_left = right_left.distribution_law(operations);
-                        let right_right = right_right.distribution_law(operations);
-                        or(and(left.clone(), right_left), and(left.clone(), right_right))
-                    }
-                    (Expression::Binary { left: left_left, operator: BinaryOperator::Or, right: left_right }, Expression::Atomic(_)) => {
-                        let left_left = left_left.distribution_law(operations);
-                        let left_right = left_right.distribution_law(operations);
-                        or(and(left_left, right.clone()), and(left_right, right.clone()))
-                    }
-                    (left, right) => and(left.distribution_law(operations), right.distribution_law(operations))
-                }
+                distribution_law_atomic_vs_binary!(left, right, operations, BinaryOperator::Or, or, and)
             }
             Expression::Binary { left, operator: BinaryOperator::Or, right } => {
-                match (left.as_ref(), right.as_ref()) {
-                    (Expression::Atomic(_), Expression::Binary { left: right_left, operator: BinaryOperator::And, right: right_right }) => {
-                        let right_left = right_left.distribution_law(operations);
-                        let right_right = right_right.distribution_law(operations);
-                        and(or(left.clone(), right_left), or(left.clone(), right_right))
-                    }
-                    (Expression::Binary { left: left_left, operator: BinaryOperator::And, right: left_right }, Expression::Atomic(_)) => {
-                        let left_left = left_left.distribution_law(operations);
-                        let left_right = left_right.distribution_law(operations);
-                        and(or(left_left, right.clone()), or(left_right, right.clone()))
-                    }
-                    (left, right) => or(left.distribution_law(operations), right.distribution_law(operations))
-                }
+                distribution_law_atomic_vs_binary!(left, right, operations, BinaryOperator::And, and, or)
             }
-            Expression::Binary { left, operator, right } => {
-                let left = left.distribution_law(operations);
-                let right = right.distribution_law(operations);
-                binary(left, *operator, right)
-            }
+            Expression::Binary { left, operator, right } => binary(
+                left.distribution_law(operations),
+                *operator,
+                right.distribution_law(operations),
+            ),
             Expression::Not(expr) => not(expr.distribution_law(operations)),
             atomic => atomic.clone(),
         };
@@ -224,7 +212,7 @@ fn evaluate_equals_or_opposites<F: Fn(Expression, Expression) -> Expression>(
     ret_func: F,
     operations: &mut Vec<Operation>,
 ) -> Option<Expression> {
-    if *this == *left || *this == *right {
+    if this == left || this == right {
         return Some(this.absorption_law(operations));
     } else if left.is_atomic() && right.is_atomic() && this.opposite_eq(left) {
         if this.opposite_eq(left) {

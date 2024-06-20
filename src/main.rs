@@ -17,7 +17,7 @@ mod utils;
 
 #[tokio::main]
 async fn main() {
-    let addr = SocketAddr::from(([0, 0, 0, 0], config::PORT));
+    let addr = SocketAddr::from(config::SOCKET);
     let listener = TcpListener::bind(&addr)
         .await
         .unwrap();

@@ -144,8 +144,8 @@ impl TruthTable {
         if hide_intermediate {
             expression_map = Self::remove_intermediate_steps(expression_map, last_expression);
         }
-        let string_map = expression_map.iter()
-            .map(|(key, value)| (key.to_string(), *value))
+        let string_map = expression_map.into_iter()
+            .map(|(key, value)| (key.to_string(), value))
             .collect::<HashMap<String, bool>>();
 
         header.iter()
@@ -154,10 +154,10 @@ impl TruthTable {
     }
 
     fn remove_intermediate_steps<'a>(expression_map: HashMap<&'a Expression, bool>, top_level_expression: &'a str) -> HashMap<&'a Expression, bool> {
-        expression_map.iter()
+        expression_map.into_iter()
             .filter_map(|(key, value)| {
                 if key.is_atomic() || key.to_string() == top_level_expression {
-                    Some((*key, *value))
+                    Some((key, value))
                 } else {
                     None
                 }
