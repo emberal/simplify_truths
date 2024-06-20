@@ -58,14 +58,28 @@ macro_rules! routes {
 /// let html = load_html("openapi.html").await.unwrap();
 /// ```
 pub async fn load_html(file_path: &str) -> Result<Html<Body>, String> {
+    load_file(file_path).await.map(Html)
+}
+
+pub async fn load_file(file_path: &str) -> Result<Body, String> {
     let file = match File::open(format!("{}/{}", RESOURCE_DIR, file_path)).await {
         Ok(file) => file,
         Err(err) => return Err(format!("File not found: {err}")),
     };
     let stream = ReaderStream::new(file);
-    Ok(Html(Body::from_stream(stream)))
+    Ok(Body::from_stream(stream))
 }
 
+/// Load an HTML file from the given file path, relative to the resource directory.
+/// The file is loading on compile time as a string literal.
+/// # Arguments
+/// * `filename` - The path to the HTML file.
+/// # Returns
+/// The HTML file as a `Html` object containing the content-type 'text/html'.
+/// # Examples
+/// ```
+/// let html = load_html!("openapi.html");
+/// ```
 #[macro_export]
 macro_rules! load_html {
     ($filename:literal) => {
