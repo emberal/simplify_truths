@@ -19,7 +19,9 @@ COPY ./src ./src
 RUN rm ./target/release/deps/simplify_truths*
 RUN cargo build --release
 
-FROM node:20.14.0 as spec
+FROM node:20.14.0 as static
+
+COPY ./src/resources/static ./src/resources/static
 
 WORKDIR /spec
 
@@ -33,8 +35,8 @@ LABEL authors="Martin Berg Alstad"
 
 # copy the build artifact from the build stage
 COPY --from=build /simplify_truths/target/release/simplify_truths .
-# copy the generated html file for REDOC documentation
-COPY --from=spec /spec/dist/index.html ./openapi/index.html
+# copy the static html files
+COPY --from=static ./src/resources/static ./static
 
 EXPOSE 8000
 

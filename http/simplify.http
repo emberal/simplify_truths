@@ -1,11 +1,3 @@
-### GET index page
-
-GET {{url}}
-
-### GET OpenAPI page
-
-GET {{url}}/openapi
-
 ### GET Atomic Expression
 GET {{url}}/simplify/A
 
@@ -131,33 +123,3 @@ GET {{url}}/simplify/{{expression}}
 ### GET with simplify="true"
 
 GET {{url}}/simplify/A?simplify=true&hide=NONE&sort=DEFAULT&caseSensitive=false&hideIntermediate=false
-
-### GET only table
-
-GET {{url}}/table/A
-
-> {%
-    client.test("Response body contains only the truth table", () => {
-        client.assert(response.body.truthTable, "Response body does not contain the truth table")
-    });
-%}
-
-### GET table and hide intermediate values
-
-< {%
-    import {expression} from "./common";
-
-    expression("A & B | C")
-%}
-GET {{url}}/table/{{expression}}?hideIntermediateSteps=true
-
-> {%
-    client.test("Response body does not contain intermediate steps", () => {
-        const header = response.body.truthTable.header;
-        const matrix = response.body.truthTable.truthMatrix;
-        client.assert(header.length === 4, "Response body contains intermediate steps")
-        for (let i = 0; i < matrix.length; i++) {
-            client.assert(matrix[i].length === 4, "Response body contains intermediate steps")
-        }
-    });
-%}

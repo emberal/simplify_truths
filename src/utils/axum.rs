@@ -1,3 +1,10 @@
+use axum::body::Body;
+use axum::response::Html;
+use tokio::fs::File;
+use tokio_util::io::ReaderStream;
+
+use crate::config::RESOURCE_DIR;
+
 /// Create an axum router function with the given body or routes.
 /// # Examples
 /// ```
@@ -39,4 +46,22 @@ macro_rules! routes {
         axum::Router::new()
             $(.route($route, axum::routing::$method($func)))*
     };
+}
+
+/// Load an HTML file from the given file path, relative to the resource directory.
+/// # Arguments
+/// * `file_path` - The path to the HTML file.
+/// # Returns
+/// The HTML file as a `Html` object containing the content-type 'text/html' or an error message if the file is not found or cannot be read.
+/// # Examples
+/// ```
+/// let html = load_html("openapi.html").await.unwrap();
+/// ```
+pub async fn load_html(file_path: &str) -> Result<Html<Body>, String> {
+    let file = match File::open(format!("{}/{}", RESOURCE_DIR, file_path)).await {
+        Ok(file) => file,
+        Err(err) => return Err(format!("File not found: {err}")),
+    };
+    let stream = ReaderStream::new(file);
+    Ok(Html(Body::from_stream(stream)))
 }

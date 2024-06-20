@@ -1,14 +1,17 @@
-use axum::body::Body;
+use axum::extract::Path;
 use axum::http::StatusCode;
-use axum::response::{Html, IntoResponse, Response};
-use tokio::fs::File;
-use tokio_util::io::ReaderStream;
+use axum::response::{IntoResponse, Response};
 
+use crate::expressions::expression::Expression;
 use crate::router;
+use crate::routing::error::{Error, ErrorKind};
+use crate::routing::response::IsLegalResponse;
+use crate::utils::axum::load_html;
 
 router!(
     get "/" => index,
-    get "/openapi" => open_api
+    get "/openapi" => open_api,
+    get "/is-valid/:exp" => is_valid
 );
 
 async fn index() -> &'static str {
@@ -16,17 +19,22 @@ async fn index() -> &'static str {
 }
 
 async fn open_api() -> Response {
-    let file_path = if cfg!(debug_assertions) {
-        "./spec/dist/index.html"
-    } else {
-        "./openapi/index.html"
-    };
-    let file = match File::open(file_path).await {
-        Ok(file) => file,
-        Err(err) => return (StatusCode::NOT_FOUND, format!("File not found: {err}")).into_response(),
-    };
-    let stream = ReaderStream::new(file);
-    let body = Body::from_stream(stream);
+    match load_html("openapi.html").await {
+        Ok(html) => html.into_response(),
+        Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, err).into_response()
+    }
+}
 
-    Html(body).into_response()
+async fn is_valid(Path(path): Path<String>) -> Response {
+    match Expression::try_from(path.as_str()) {
+        Ok(_) => IsLegalResponse { is_legal: true }.into_response(),
+        Err(error) => Error::new(error.to_string(), ErrorKind::InvalidExpression).into_response()
+    }
+}
+
+pub(crate) async fn not_found() -> Response {
+    match load_html("not-found.html").await {
+        Ok(html) => (StatusCode::NOT_FOUND, html).into_response(),
+        Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, err).into_response()
+    }
 }

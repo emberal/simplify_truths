@@ -7,6 +7,7 @@ use tower_http::trace::TraceLayer;
 use tracing::Level;
 
 use crate::routing::routes::*;
+use crate::routing::routes::index::not_found;
 
 mod expressions;
 mod parsing;
@@ -29,7 +30,7 @@ async fn main() {
     let routes = simplify::router()
         .merge(table::router())
         .merge(index::router())
-        .merge(util::router());
+        .fallback(not_found);
 
     let app = routes
         .layer(CorsLayer::new().allow_origin(Any))

@@ -1,0 +1,17 @@
+### GET index page
+
+GET {{url}}
+
+### GET OpenAPI page
+
+GET {{url}}/openapi
+
+### GET should fallback to 404 page
+
+GET {{url}}/something-that-does-not-exist
+
+> {%
+    client.test("Response status is 404", () => {
+        client.assert(response.status === 404, "Response status is not 404");
+    });
+%}
