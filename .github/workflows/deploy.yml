@@ -1,4 +1,4 @@
-name: Deploy image to Docker Hub and pull it
+name: Deploy image to server, build and run
 
 on:
   push:
