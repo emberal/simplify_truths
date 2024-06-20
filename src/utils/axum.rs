@@ -91,6 +91,6 @@ macro_rules! absolute_path {
 macro_rules! absolute_path {
     ($filename:literal) => {
         include_str!(concat!("/static/", $filename))
-            .replace("{{docs}}", "simplify-truths/v2/openapi")
+            .replace("{{docs}}", "/simplify-truths/v2/openapi")
     };
 }
