@@ -2,9 +2,10 @@ use std::ops::Deref;
 
 use serde::Serialize;
 
-use crate::expressions::expression::{Expression, OppositeEq};
+use crate::expressions::expression::Expression;
 use crate::expressions::helpers::{and, binary, not, or};
 use crate::expressions::operator::BinaryOperator;
+use crate::routing::options::SimplifyOptions;
 use crate::routing::response::Operation;
 
 #[derive(Debug, PartialEq, Serialize)]
@@ -21,19 +22,19 @@ pub enum Law {
 
 #[macro_export]
 macro_rules! absorption_law_opposites {
-    ($left:expr, $right:expr, $operations:expr, $op:pat, $func:expr) => {
+    ($left:expr, $right:expr, $operations:expr, $op:pat, $func:expr, $ignore_case:expr) => {
         match ($left.as_ref(), $right.as_ref()) {
             (_, Expression::Binary { left: right_left, operator: $op, right: right_right }) => {
-                evaluate_equals_or_opposites($left.as_ref(), right_left, right_right, $func, $operations).unwrap_or(
-                    $func($left.absorption_law($operations), $right.absorption_law($operations))
+                evaluate_equals_or_opposites($left.as_ref(), right_left, right_right, $func, $ignore_case, $operations).unwrap_or(
+                    $func($left.absorption_law($operations, $ignore_case), $right.absorption_law($operations, $ignore_case))
                 )
             }
             (Expression::Binary { left: left_left, operator: $op, right: left_right }, _) => {
-                evaluate_equals_or_opposites($right.as_ref(), left_left, left_right, $func, $operations).unwrap_or(
-                    $func($left.absorption_law($operations), $right.absorption_law($operations))
+                evaluate_equals_or_opposites($right.as_ref(), left_left, left_right, $func, $ignore_case, $operations).unwrap_or(
+                    $func($left.absorption_law($operations, $ignore_case), $right.absorption_law($operations, $ignore_case))
                 )
             }
-            (left, right) => $func(left.absorption_law($operations), right.absorption_law($operations))
+            (left, right) => $func(left.absorption_law($operations, $ignore_case), right.absorption_law($operations, $ignore_case))
         }
     };
 }
@@ -57,14 +58,24 @@ macro_rules! distribution_law_atomic_vs_binary {
     };
 }
 
-// TODO deduplicate code
+#[derive(Debug, Default)]
+pub struct Options {
+    pub ignore_case: bool,
+}
+
+impl From<SimplifyOptions> for Options {
+    fn from(options: SimplifyOptions) -> Self {
+        Self { ignore_case: options.ignore_case }
+    }
+}
+
 impl Expression {
     // TODO better track of operations
-    pub fn simplify(&self) -> (Self, Vec<Operation>) {
+    pub fn simplify(&self, options: Options) -> (Self, Vec<Operation>) {
         let mut operations: Vec<Operation> = vec![];
         let expression = self.elimination_of_implication(&mut operations)
             .de_morgans_laws(&mut operations)
-            .absorption_law(&mut operations)
+            .absorption_law(&mut operations, options.ignore_case)
             // .associative_law(&mut operations)
             .distribution_law(&mut operations)
             .double_negation_elimination(&mut operations);
@@ -149,23 +160,24 @@ impl Expression {
         result
     }
 
-    fn absorption_law(&self, operations: &mut Vec<Operation>) -> Self {
+    fn absorption_law(&self, operations: &mut Vec<Operation>, ignore_case: bool) -> Self {
         let result = match self {
-            Expression::Binary { left, operator: BinaryOperator::And | BinaryOperator::Or, right } if left == right => {
-                left.absorption_law(operations)
+            Expression::Binary { left, operator: BinaryOperator::And | BinaryOperator::Or, right }
+            if Expression::eq(left, right, ignore_case) => {
+                left.absorption_law(operations, ignore_case)
             }
             Expression::Binary { left, operator: BinaryOperator::And, right } => {
-                absorption_law_opposites!(left, right, operations, BinaryOperator::Or, and)
+                absorption_law_opposites!(left, right, operations, BinaryOperator::Or, and, ignore_case)
             }
             Expression::Binary { left, operator: BinaryOperator::Or, right } => {
-                absorption_law_opposites!(left, right, operations, BinaryOperator::And, or)
+                absorption_law_opposites!(left, right, operations, BinaryOperator::And, or, ignore_case)
             }
             Expression::Binary { left, operator, right } => binary(
-                left.absorption_law(operations),
+                left.absorption_law(operations, ignore_case),
                 *operator,
-                right.absorption_law(operations),
+                right.absorption_law(operations, ignore_case),
             ),
-            Expression::Not(expr) => not(expr.absorption_law(operations)),
+            Expression::Not(expr) => not(expr.absorption_law(operations, ignore_case)),
             atomic => atomic.clone(),
         };
         if let Some(operation) = Operation::new(self, &result, Law::AbsorptionLaw) {
@@ -210,15 +222,16 @@ fn evaluate_equals_or_opposites<F: Fn(Expression, Expression) -> Expression>(
     left: &Expression,
     right: &Expression,
     ret_func: F,
+    ignore_case: bool,
     operations: &mut Vec<Operation>,
 ) -> Option<Expression> {
-    if this == left || this == right {
-        return Some(this.absorption_law(operations));
-    } else if left.is_atomic() && right.is_atomic() && this.opposite_eq(left) {
-        if this.opposite_eq(left) {
-            return Some(ret_func(right.absorption_law(operations), this.absorption_law(operations)));
-        } else if this.opposite_eq(right) {
-            return Some(ret_func(left.absorption_law(operations), this.absorption_law(operations)));
+    if this.eq(left, ignore_case) || this.eq(right, ignore_case) {
+        return Some(this.absorption_law(operations, ignore_case));
+    } else if left.is_atomic() && right.is_atomic() && this.opposite_eq(left, ignore_case) {
+        if this.opposite_eq(left, ignore_case) {
+            return Some(ret_func(right.absorption_law(operations, ignore_case), this.absorption_law(operations, ignore_case)));
+        } else if this.opposite_eq(right, ignore_case) {
+            return Some(ret_func(left.absorption_law(operations, ignore_case), this.absorption_law(operations, ignore_case)));
         }
     }
     None
@@ -231,7 +244,7 @@ mod tests {
 
     #[test]
     fn test_simplify() {
-        let (expression, operations) = implies(atomic("a"), atomic("b")).simplify();
+        let (expression, operations) = implies(atomic("a"), atomic("b")).simplify(Default::default());
         assert_eq!(expression, or(not(atomic("a")), atomic("b")));
         assert_eq!(operations.len(), 1);
         assert_eq!(operations[0].law, Law::EliminationOfImplication);
@@ -239,7 +252,7 @@ mod tests {
 
     #[test]
     fn test_simplify_a_and_a() {
-        let (expression, operations) = and(atomic("a"), atomic("a")).simplify();
+        let (expression, operations) = and(atomic("a"), atomic("a")).simplify(Default::default());
         assert_eq!(expression, atomic("a"));
         assert_eq!(operations.len(), 1);
         assert_eq!(operations[0].law, Law::AbsorptionLaw);
@@ -247,7 +260,7 @@ mod tests {
 
     #[test]
     fn test_implication_and_de_morgans() {
-        let expression = implies(and(not(atomic("a")), atomic("b")), atomic("c")).simplify().0;
+        let expression = implies(and(not(atomic("a")), atomic("b")), atomic("c")).simplify(Default::default()).0;
         assert_eq!(expression, or(or(atomic("a"), not(atomic("b"))), atomic("c")));
     }
 
@@ -390,21 +403,21 @@ mod tests {
     #[test]
     fn test_absorption_law_and() {
         let mut operations = vec![];
-        let expression = and(atomic("a"), or(atomic("a"), atomic("b"))).absorption_law(&mut operations);
+        let expression = and(atomic("a"), or(atomic("a"), atomic("b"))).absorption_law(&mut operations, false);
         assert_eq!(expression, atomic("a"));
     }
 
     #[test]
     fn test_absorption_law_or() {
         let mut operations = vec![];
-        let expression = or(atomic("a"), and(atomic("a"), atomic("b"))).absorption_law(&mut operations);
+        let expression = or(atomic("a"), and(atomic("a"), atomic("b"))).absorption_law(&mut operations, false);
         assert_eq!(expression, atomic("a"));
     }
 
     #[test]
     fn test_absorption_law_nested_and() {
         let mut operations = vec![];
-        let expression = and(atomic("a"), or(atomic("a"), atomic("b"))).absorption_law(&mut operations);
+        let expression = and(atomic("a"), or(atomic("a"), atomic("b"))).absorption_law(&mut operations, Default::default());
         assert_eq!(expression, atomic("a"));
     }
 
@@ -412,7 +425,7 @@ mod tests {
     #[test]
     fn test_absorption_law_not() {
         let mut operations = vec![];
-        let expression = or(and(not(atomic("a")), atomic("b")), atomic("a")).absorption_law(&mut operations);
+        let expression = or(and(not(atomic("a")), atomic("b")), atomic("a")).absorption_law(&mut operations, Default::default());
         assert_eq!(expression, or(atomic("b"), atomic("a")));
     }
 
@@ -420,7 +433,7 @@ mod tests {
     #[test]
     fn test_absorption_law_not_reversed() {
         let mut operations = vec![];
-        let expression = or(and(atomic("a"), atomic("b")), not(atomic("a"))).absorption_law(&mut operations);
+        let expression = or(and(atomic("a"), atomic("b")), not(atomic("a"))).absorption_law(&mut operations, Default::default());
         assert_eq!(expression, or(atomic("b"), not(atomic("a"))));
     }
 
@@ -428,7 +441,7 @@ mod tests {
     #[test]
     fn test_absorption_law_double_not() {
         let mut operations = vec![];
-        let expression = or(and(not(atomic("a")), atomic("b")), not(atomic("a"))).absorption_law(&mut operations);
+        let expression = or(and(not(atomic("a")), atomic("b")), not(atomic("a"))).absorption_law(&mut operations, Default::default());
         assert_eq!(expression, not(atomic("a")));
     }
 
@@ -436,7 +449,7 @@ mod tests {
     fn test_absorption_law_duplicate_atomic() {
         let mut operations = vec![];
         let expression = and(atomic("A"), atomic("A"));
-        let simplified = expression.absorption_law(&mut operations);
+        let simplified = expression.absorption_law(&mut operations, Default::default());
         assert_eq!(simplified, atomic("A"));
         assert_eq!(operations.len(), 1);
         assert_eq!(operations[0].law, Law::AbsorptionLaw);
@@ -448,7 +461,7 @@ mod tests {
     #[test]
     fn test_in_parenthesis() {
         let mut operations = vec![];
-        let expression = and(or(atomic("a"), atomic("b")), not(atomic("a"))).absorption_law(&mut operations);
+        let expression = and(or(atomic("a"), atomic("b")), not(atomic("a"))).absorption_law(&mut operations, Default::default());
         assert_eq!(expression, and(atomic("b"), not(atomic("a"))));
     }
 

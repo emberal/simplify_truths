@@ -7,10 +7,6 @@ use serde::{Deserialize, Serialize};
 use crate::expressions::operator::BinaryOperator;
 use crate::parsing::expression_parser::parse_expression;
 
-pub trait OppositeEq {
-    fn opposite_eq(&self, other: &Self) -> bool;
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Expression {
@@ -39,14 +35,32 @@ impl Expression {
             Expression::Atomic(value) => HashSet::from([value.clone()])
         }
     }
-}
 
-impl OppositeEq for Expression {
-    fn opposite_eq(&self, other: &Self) -> bool {
+    pub fn eq(&self, other: &Self, ignore_case: bool) -> bool {
+        match (self, other) {
+            (Expression::Not(left), Expression::Not(right)) => Expression::eq(left, right, ignore_case),
+            (Expression::Binary { left: left_left, operator: left_operator, right: left_right },
+                Expression::Binary { left: right_left, operator: right_operator, right: right_right }) => {
+                Expression::eq(left_left, right_left, ignore_case)
+                    && left_operator == right_operator
+                    && Expression::eq(left_right, right_right, ignore_case)
+            }
+            (Expression::Atomic(left), Expression::Atomic(right)) => {
+                if ignore_case {
+                    left.eq_ignore_ascii_case(right)
+                } else {
+                    left == right
+                }
+            }
+            _ => false
+        }
+    }
+
+    pub fn opposite_eq(&self, other: &Self, ignore_case: bool) -> bool {
         match (self, other) {
             (Expression::Not(_), Expression::Not(_)) => false,
-            (Expression::Not(left), right) => left.as_ref() == right,
-            (left, Expression::Not(right)) => left == right.as_ref(),
+            (Expression::Not(left), right) => left.as_ref().eq(right, ignore_case),
+            (left, Expression::Not(right)) => left.eq(right.as_ref(), ignore_case),
             _ => false,
         }
     }
@@ -98,6 +112,48 @@ impl Display for Expression {
 mod tests {
     use crate::expressions::expression::Expression;
     use crate::expressions::helpers::{and, atomic, implies, not, or};
+
+    #[test]
+    fn test_eq_ignore_case_atomics() {
+        let expression_lower = atomic("a");
+        let expression_upper = atomic("A");
+        assert!(expression_lower.eq(&expression_upper, true));
+    }
+
+    #[test]
+    fn test_eq_ignore_case_not() {
+        let expression_lower = not(atomic("a"));
+        let expression_upper = not(atomic("A"));
+        assert!(expression_lower.eq(&expression_upper, true));
+    }
+
+    #[test]
+    fn test_eq_ignore_case_and() {
+        let expression_lower = and(atomic("a"), atomic("b"));
+        let expression_upper = and(atomic("A"), atomic("B"));
+        assert!(expression_lower.eq(&expression_upper, true));
+    }
+
+    #[test]
+    fn test_eq_ignore_case_equal() {
+        let expression_lower = or(atomic("a"), atomic("b"));
+        let expression_upper = or(atomic("a"), atomic("b"));
+        assert!(expression_lower.eq(&expression_upper, true));
+    }
+
+    #[test]
+    fn test_eq_ignore_case_unequal() {
+        let expression_lower = or(atomic("a"), atomic("b"));
+        let expression_upper = or(atomic("a"), atomic("c"));
+        assert!(!expression_lower.eq(&expression_upper, true));
+    }
+
+    #[test]
+    fn test_eq_dont_ignore_case() {
+        let expression_lower = or(atomic("a"), atomic("b"));
+        let expression_upper = or(atomic("a"), atomic("B"));
+        assert!(!expression_lower.eq(&expression_upper, false));
+    }
 
     #[test]
     fn test_expression_a_and_not_b_display() {

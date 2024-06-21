@@ -20,7 +20,7 @@ async fn simplify(Path(path): Path<String>, Query(query): Query<SimplifyOptions>
             let before = expression.to_string();
             let mut operations = vec![];
             if query.simplify {
-                (expression, operations) = expression.simplify();
+                (expression, operations) = expression.simplify(query.into());
             }
             SimplifyResponse {
                 before,
@@ -42,7 +42,7 @@ async fn simplify_and_table(Path(path): Path<String>, Query(query): Query<Simpli
             let before = expression.to_string();
             let mut operations = vec![];
             if query.simplify_options.simplify {
-                (expression, operations) = expression.simplify();
+                (expression, operations) = expression.simplify(query.simplify_options.into());
             }
             let truth_table = TruthTable::new(&expression, query.table_options);
             SimplifyResponse {

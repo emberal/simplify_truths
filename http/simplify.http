@@ -123,3 +123,18 @@ GET {{url}}/simplify/{{expression}}
 ### GET with simplify="true"
 
 GET {{url}}/simplify/A?simplify=true&hide=NONE&sort=DEFAULT&caseSensitive=false&hideIntermediate=false
+
+### GET and ignore case
+
+< {%
+    import {expression} from "./common";
+
+    expression("A & a")
+%}
+GET {{url}}/simplify/{{expression}}?ignoreCase=true
+
+> {%
+    client.test("Response body is the same as the input", () => {
+        client.assert(response.body.after === "A", "Response body is not simplified to 'a'");
+    });
+%}

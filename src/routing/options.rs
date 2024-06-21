@@ -2,15 +2,17 @@ use serde::Deserialize;
 use crate::expressions::truth_table::{Hide, Sort};
 use crate::utils::serialize::{ret_true, deserialize_bool};
 
+// TODO deserialize_bool should not be necessary
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SimplifyOptions {
     #[serde(
         default = "ret_true",
         deserialize_with = "deserialize_bool"
     )]
     pub simplify: bool,
-    #[serde(default = "ret_true")]
-    pub case_sensitive: bool, // TODO: Implement case sensitivity
+    #[serde(default, deserialize_with = "deserialize_bool")]
+    pub ignore_case: bool,
 }
 
 #[derive(Deserialize, Default)]
