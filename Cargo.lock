@@ -138,6 +138,7 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 [[package]]
 name = "derive"
 version = "1.0.0"
+source = "git+https://github.com/emberal/rust-lib.git?tag=1.0.0#d5974dda2071355115090e26175b657ee82b719b"
 dependencies = [
  "quote",
  "syn",
@@ -304,6 +305,7 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 [[package]]
 name = "lib"
 version = "1.0.0"
+source = "git+https://github.com/emberal/rust-lib.git?tag=1.0.0#d5974dda2071355115090e26175b657ee82b719b"
 dependencies = [
  "axum",
  "derive",
