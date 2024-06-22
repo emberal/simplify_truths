@@ -112,7 +112,7 @@ impl TruthTable {
             return vec![];
         }
         atomics.sort();
-        Self::truth_combinations(atomics.len()).iter()
+        Self::truth_combinations(atomics.len() as u32).iter()
             .filter_map(|combo| {
                 let expression = Self::resolve_expression(expression, &atomics.iter()
                     .enumerate()
@@ -127,12 +127,13 @@ impl TruthTable {
             }).collect()
     }
 
-    fn truth_combinations(count: usize) -> TruthMatrix {
-        (0..2usize.pow(count as u32))
-            .map(|i| (0..count).rev()
-                // Just trust me bro
-                .map(|j| (i >> j) & 1 == 0).collect()
-            ).collect()
+    fn truth_combinations(count: u32) -> TruthMatrix {
+        let row_len = 2usize.pow(count);
+        let rows = 0..row_len;
+        rows.map(|index| (0..count).rev()
+            // Just trust me bro
+            .map(|shift| (index >> shift) & 1 == 0).collect()
+        ).collect()
     }
 
     fn resolve_expression(expression: &Expression, booleans: &HashMap<String, bool>, header: &[String], hide_intermediate: bool) -> Vec<bool> {

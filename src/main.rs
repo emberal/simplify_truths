@@ -1,15 +1,14 @@
 use std::net::SocketAddr;
-use axum::{ServiceExt};
-use axum::extract::Request;
-use lib::{create_app, join_routes};
 
+use axum::extract::Request;
+use axum::ServiceExt;
+use lib::{create_app, join_routes};
 use tokio::net::TcpListener;
+use tower::Layer;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::normalize_path::NormalizePathLayer;
 use tower_http::trace;
 use tower_http::trace::TraceLayer;
-use tower::Layer;
-
 use tracing::Level;
 
 use crate::routing::routes::*;

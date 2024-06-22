@@ -13,7 +13,7 @@ tokio = { version = "1.38.0", features = ["macros", "rt-multi-thread"] }
 serde = { version = "1.0.203", features = ["derive", "rc"] }
 # API
 axum = { version = "0.7.5", features = ["macros"] }
-tower-http = { version = "0.5.2", features = ["cors", "trace", "normalize-path", "tower"] }
+tower-http = { version = "0.5.2", features = ["cors", "trace", "normalize-path"] }
 tower = "0.4.13"
 # Logging
 tracing = "0.1.40"

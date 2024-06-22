@@ -5,7 +5,8 @@
   "author": "Martin Berg Alstad",
   "scripts": {
     "tsp-compile": "tsp compile . --output-dir dist",
-    "redoc-build": "redocly build-docs dist/@typespec/openapi3/openapi.v2.yaml --output ../src/resources/static/openapi.html"
+    "redoc-build": "redocly build-docs dist/@typespec/openapi3/openapi.v2.yaml --output ../src/resources/static/openapi.html",
+    "tsp-format": "tsp format \"**/*.tsp\""
   },
   "dependencies": {
     "@typespec/compiler": "latest",

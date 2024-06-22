@@ -1,12 +1,71 @@
 openapi: 3.0.0
 info:
-  title: Simplify Truth Expressions
+  title: Simplify Truth API
+  description: A service to simplify truth expressions, and generate truth tables.
   version: v2
-tags: []
+tags:
+  - name: Common
+  - name: Expression
+  - name: Table
 paths:
-  /simplify/{exp}:
+  /:
     get:
-      operationId: Simplify_simplify
+      tags:
+        - Common
+      operationId: Index_index
+      summary: Information
+      description: Information about this API.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Responses.InfoResponse'
+  /is-valid/{exp}:
+    get:
+      tags:
+        - Common
+        - Expression
+      operationId: Index_isValid
+      summary: Check if an expression is valid
+      description: Check if an expression is valid.
+      parameters:
+        - name: exp
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Responses.IsValidResponse'
+  /openapi:
+    get:
+      tags:
+        - Common
+      operationId: Index_openAPI
+      summary: The OpenAPI specification
+      description: The OpenAPI specification for this API.
+      parameters: []
+      responses:
+        '200':
+          description: Returns a response as HTML, with the content type set to "text/html".
+          content:
+            text/html:
+              schema:
+                type: string
+  /simplify/table/{exp}:
+    get:
+      tags:
+        - Expression
+        - Table
+      operationId: Simplify_simplifyTable
+      summary: Simplify and generate a truth table
       parameters:
         - name: exp
           in: path
@@ -17,14 +76,62 @@ paths:
           in: query
           required: false
           schema:
-            $ref: '#/components/schemas/SimplifyOptions'
+            $ref: '#/components/schemas/Options.SimplifyTableOptions'
       responses:
         '200':
           description: The request has succeeded.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SimplifyResponse'
+                $ref: '#/components/schemas/Responses.SimplifyTableResponse'
+  /simplify/{exp}:
+    get:
+      tags:
+        - Expression
+      operationId: Simplify_simplify
+      summary: Simplify a truth expression
+      parameters:
+        - name: exp
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: query
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/Options.SimplifyOptions'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Responses.SimplifyResponse'
+  /table/{exp}:
+    get:
+      tags:
+        - Table
+      operationId: TruthTable_simplify
+      summary: Generate a truth table
+      parameters:
+        - name: exp
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: query
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/Options.TableOptions'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Responses.TruthTableResponse'
 components:
   schemas:
     Expression:
@@ -32,12 +139,14 @@ components:
         - $ref: '#/components/schemas/Models.ExpressionNot'
         - $ref: '#/components/schemas/Models.ExpressionBinary'
         - $ref: '#/components/schemas/Models.ExpressionAtomic'
+      title: A truth expression
     Models.BinaryOperator:
       type: string
       enum:
         - AND
         - OR
         - IMPLICATION
+      title: A binary operator
     Models.ExpressionAtomic:
       type: object
       required:
@@ -45,6 +154,8 @@ components:
       properties:
         atomic:
           type: string
+          title: The atomic value
+      title: An atomic expression
     Models.ExpressionBinary:
       type: object
       required:
@@ -53,52 +164,214 @@ components:
         - right
       properties:
         left:
-          $ref: '#/components/schemas/Expression'
+          allOf:
+            - $ref: '#/components/schemas/Expression'
+          title: The left expression
         operator:
-          $ref: '#/components/schemas/Models.BinaryOperator'
+          allOf:
+            - $ref: '#/components/schemas/Models.BinaryOperator'
+          title: The binary operator
         right:
-          $ref: '#/components/schemas/Expression'
+          allOf:
+            - $ref: '#/components/schemas/Expression'
+          title: The right expression
+      title: A binary expression
     Models.ExpressionNot:
       type: object
       required:
         - not
       properties:
         not:
-          $ref: '#/components/schemas/Expression'
-    SimplifyOptions:
+          allOf:
+            - $ref: '#/components/schemas/Expression'
+          title: The expression to negate
+      title: The inverse of an expression
+    Models.TruthTable:
       type: object
       required:
-        - lang
-        - simplify
-        - caseSensitive
+        - header
+        - truthMatrix
       properties:
-        lang:
-          type: string
-          enum:
-            - en
-            - nb
-          default: en
+        header:
+          type: array
+          items:
+            type: string
+          title: The header of the truth table
+        truthMatrix:
+          type: array
+          items:
+            type: array
+            items:
+              type: boolean
+          title: The rows and columns of the truth table
+      title: A truth table
+    Options.Hide:
+      type: string
+      enum:
+        - NONE
+        - 'TRUE'
+        - 'FALSE'
+      title: Whether to hide specific rows in a truth table
+    Options.SimplifyOptions:
+      type: object
+      properties:
         simplify:
           type: boolean
+          title: Whether to simplify the expression
           default: true
-        caseSensitive:
+        ignoreCase:
           type: boolean
+          title: Whether to ignore case when simplifying
           default: false
-    SimplifyResponse:
+      title: Options for simplifying an expression
+    Options.SimplifyTableOptions:
+      type: object
+      properties:
+        simplify:
+          type: boolean
+          title: Whether to simplify the expression
+          default: true
+        ignoreCase:
+          type: boolean
+          title: Whether to ignore case when simplifying
+          default: false
+        sort:
+          allOf:
+            - $ref: '#/components/schemas/Options.Sort'
+          title: Sort order for the truth table
+          default: DEFAULT
+        hide:
+          allOf:
+            - $ref: '#/components/schemas/Options.Hide'
+          title: Hide specific rows in the truth table
+          default: NONE
+        hideIntermediateSteps:
+          type: boolean
+          description: |-
+            Hide intermediate steps when generating the truth table
+            For example in the expression "A and B or C", the intermediate step is: A and B
+          title: Hide intermediate steps when generating the truth table
+          default: false
+      title: Options for simplifying an expression and generating a truth table
+    Options.Sort:
+      type: string
+      enum:
+        - DEFAULT
+        - TRUE_FIRST
+        - FALSE_FIRST
+      title: Sort order for a truth table
+    Options.TableOptions:
+      type: object
+      properties:
+        sort:
+          allOf:
+            - $ref: '#/components/schemas/Options.Sort'
+          title: Sort order for the truth table
+          default: DEFAULT
+        hide:
+          allOf:
+            - $ref: '#/components/schemas/Options.Hide'
+          title: Hide specific rows in the truth table
+          default: NONE
+        hideIntermediateSteps:
+          type: boolean
+          description: |-
+            Hide intermediate steps when generating the truth table
+            For example in the expression "A and B or C", the intermediate step is: A and B
+          title: Hide intermediate steps when generating the truth table
+          default: false
+      title: Options for generating a truth table
+    Responses.InfoResponse:
+      type: object
+      required:
+        - message
+        - docs
+        - createdBy
+      properties:
+        message:
+          type: string
+        docs:
+          type: string
+        createdBy:
+          type: string
+      description: Information about this API.
+      title: Information
+    Responses.IsValidResponse:
+      type: object
+      required:
+        - isValid
+      properties:
+        isValid:
+          type: boolean
+      description: If an expression is valid.
+      title: If an expression is valid
+    Responses.SimplifyResponse:
       type: object
       required:
         - before
         - after
+        - operations
         - expression
       properties:
         before:
           type: string
+          title: Before simplification
         after:
           type: string
-        orderOfOperations:
+          title: After simplification
+        operations:
           type: array
           items:
             type: string
-          default: []
+          title: Steps taken to simplify
         expression:
-          $ref: '#/components/schemas/Expression'
+          allOf:
+            - $ref: '#/components/schemas/Expression'
+          title: The simplified expression
+      description: Response after simplifying an expression.
+      title: Simplify Response
+    Responses.SimplifyTableResponse:
+      type: object
+      required:
+        - before
+        - after
+        - operations
+        - expression
+        - truthTable
+      properties:
+        before:
+          type: string
+          title: Before simplification
+        after:
+          type: string
+          title: After simplification
+        operations:
+          type: array
+          items:
+            type: string
+          title: Steps taken to simplify
+        expression:
+          allOf:
+            - $ref: '#/components/schemas/Expression'
+          title: The simplified expression
+        truthTable:
+          allOf:
+            - $ref: '#/components/schemas/Models.TruthTable'
+          title: The truth table
+      description: Response after simplifying an expression and generating a truth table.
+      title: Simplify and Table Response
+    Responses.TruthTableResponse:
+      type: object
+      required:
+        - truthTable
+      properties:
+        truthTable:
+          allOf:
+            - $ref: '#/components/schemas/Models.TruthTable'
+          title: The truth table
+      description: Response after generating a truth table.
+      title: Truth Table Response
+    Version:
+      type: string
+      enum:
+        - v2

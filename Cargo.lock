@@ -675,7 +675,6 @@ dependencies = [
  "http-body",
  "http-body-util",
  "pin-project-lite",
- "tower",
  "tower-layer",
  "tower-service",
  "tracing",
