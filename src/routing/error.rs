@@ -9,8 +9,6 @@ pub enum ErrorKind {
     InvalidExpression,
     /// The expression is too long.
     LimitExceeded,
-    /// The expression is missing a character to be considered valid.
-    MissingCharacter,
     /// Unexpected error.
     #[default]
     Unexpected,

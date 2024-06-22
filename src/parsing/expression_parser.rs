@@ -1,3 +1,5 @@
+use lib::nom::combinators::{exhausted, parenthesized, trim};
+use lib::nom::util::IntoResult;
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while, take_while1};
 use nom::character::complete::char;
@@ -8,7 +10,6 @@ use nom::sequence::{pair, preceded};
 
 use crate::expressions::expression::Expression;
 use crate::expressions::helpers::{and, atomic, implies, not, or};
-use crate::parsing::utils::{exhausted, IntoResult, parenthesized, trim};
 
 pub fn parse_expression(input: &str) -> Result<Expression, nom::Err<Error<&str>>> {
     exhausted(_parse_expression)(input).into_result()

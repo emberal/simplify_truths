@@ -11,3 +11,8 @@ pub const RESOURCE_DIR: &str = if IS_DEV {
 } else {
     "./static"
 };
+pub const OPENAPI_PATH: &str = if IS_DEV {
+    "/openapi"
+} else {
+    "/simplify-truths/v2/openapi"
+};
