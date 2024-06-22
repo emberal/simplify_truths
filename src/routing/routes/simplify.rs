@@ -1,10 +1,10 @@
 use axum::extract::{Path, Query};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use lib::{router, routes};
 
 use crate::expressions::expression::Expression;
 use crate::expressions::truth_table::TruthTable;
-use crate::{router, routes};
 use crate::routing::error::{Error, ErrorKind};
 use crate::routing::options::{SimplifyAndTableOptions, SimplifyOptions};
 use crate::routing::response::SimplifyResponse;

@@ -1,7 +1,9 @@
 use std::net::SocketAddr;
+use lib::{create_app, join_routes};
 
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
+use tower_http::normalize_path::NormalizePathLayer;
 use tower_http::trace;
 use tower_http::trace::TraceLayer;
 use tracing::Level;
@@ -34,6 +36,7 @@ async fn main() {
 
     let app = create_app!(routes,
         CorsLayer::new().allow_origin(Any),
+        NormalizePathLayer::trim_trailing_slash(),
         TraceLayer::new_for_http()
             .make_span_with(trace::DefaultMakeSpan::new().level(Level::INFO))
             .on_response(trace::DefaultOnResponse::new().level(Level::INFO))

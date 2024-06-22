@@ -1,33 +1,10 @@
-use axum::Json;
 use axum::response::{IntoResponse, Response};
+use lib::derive::IntoResponse;
 use serde::Serialize;
-use derive::IntoResponse;
 
 use crate::expressions::expression::Expression;
 use crate::expressions::simplify::Law;
 use crate::expressions::truth_table::TruthTable;
-
-#[derive(Serialize)]
-struct BaseResponse<T: Serialize> {
-    version: String,
-    #[serde(flatten)]
-    result: T,
-}
-
-impl<T: Serialize> BaseResponse<T> {
-    fn create(result: T) -> Response {
-        Self {
-            version: env!("CARGO_PKG_VERSION").to_string(),
-            result,
-        }.into_response()
-    }
-}
-
-impl<T: Serialize> IntoResponse for BaseResponse<T> {
-    fn into_response(self) -> Response {
-        Json(self).into_response()
-    }
-}
 
 #[derive(Debug, PartialEq, Serialize)]
 pub struct Operation {
@@ -38,7 +15,7 @@ pub struct Operation {
 
 impl Operation {
     pub fn new(before: &Expression, after: &Expression, law: Law) -> Option<Self> {
-        if *before != *after {
+        if before != after {
             Some(Self { before: before.to_string(), after: after.to_string(), law })
         } else {
             None
@@ -66,9 +43,6 @@ pub(crate) struct IsValidResponse {
 impl IsValidResponse {
     pub const fn valid() -> Self {
         Self { is_valid: true }
-    }
-    pub const fn invalid() -> Self {
-        Self { is_valid: false }
     }
 }
 

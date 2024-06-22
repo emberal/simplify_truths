@@ -21,7 +21,6 @@ WORKDIR /simplify_truths
 
 COPY ./Cargo.lock ./Cargo.lock
 COPY ./Cargo.toml ./Cargo.toml
-COPY ./derive ./derive
 
 # this build step will cache your dependencies
 RUN cargo build --release
