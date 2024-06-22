@@ -1,8 +1,8 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use lib::{map};
-use lib::vector::distinct::Distinct;
 
+use lib::map;
+use lib::vector::distinct::Distinct;
 use serde::{Deserialize, Serialize};
 
 use crate::expressions::expression::Expression;
@@ -197,8 +197,9 @@ impl TruthTable {
 
 #[cfg(test)]
 mod tests {
-    use crate::expressions::helpers::{and, atomic, implies, not, or};
     use lib::matrix;
+
+    use crate::expressions::helpers::{and, atomic, implies, not, or};
 
     use super::*;
 
