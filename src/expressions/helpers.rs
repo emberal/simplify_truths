@@ -3,6 +3,7 @@ use crate::expressions::expression::Expression;
 use crate::expressions::operator::BinaryOperator;
 
 #[inline]
+#[must_use]
 pub fn and<L, R>(left: L, right: R) -> Expression
 where
     L: Into<Rc<Expression>>,
@@ -12,6 +13,7 @@ where
 }
 
 #[inline]
+#[must_use]
 pub fn or<L, R>(left: L, right: R) -> Expression
 where
     L: Into<Rc<Expression>>,
@@ -21,6 +23,7 @@ where
 }
 
 #[inline]
+#[must_use]
 pub fn implies<L, R>(left: L, right: R) -> Expression
 where
     L: Into<Rc<Expression>>,
@@ -30,6 +33,7 @@ where
 }
 
 #[inline]
+#[must_use]
 pub fn binary<L, R>(left: L, operator: BinaryOperator, right: R) -> Expression
 where
     L: Into<Rc<Expression>>,
@@ -39,11 +43,13 @@ where
 }
 
 #[inline]
+#[must_use]
 pub fn not<T: Into<Rc<Expression>>>(value: T) -> Expression {
     Expression::Not(value.into())
 }
 
 #[inline]
+#[must_use]
 pub fn atomic<T: Into<String>>(value: T) -> Expression {
     Expression::Atomic(value.into())
 }

@@ -10,6 +10,7 @@ use crate::routing::response::Operation;
 
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[allow(clippy::enum_variant_names)]
 pub enum Law {
     EliminationOfImplication,
     DeMorgansLaws,
@@ -86,24 +87,27 @@ impl Expression {
     /// Eliminate the implication operator from the expression.
     /// This is done by replacing `a ➔ b` with `¬a ⋁ b`.
     fn elimination_of_implication(&self, operations: &mut Vec<Operation>) -> Self {
-        let result = match self {
-            Expression::Not(expr) => not(expr.elimination_of_implication(operations)),
+        match self {
+            Expression::Not(expr) => {
+                not(expr.elimination_of_implication(operations))
+            }
             Expression::Binary { left, operator, right } => {
                 let l_result = left.elimination_of_implication(operations);
                 let r_result = right.elimination_of_implication(operations);
+                let before = binary(l_result.clone(), *operator, r_result.clone());
 
                 if let BinaryOperator::Implication = *operator {
-                    or(not(l_result), r_result)
+                    let after = or(not(l_result.clone()), r_result.clone());
+                    if let Some(operation) = Operation::new(&before, &after, Law::EliminationOfImplication) {
+                        operations.push(operation);
+                    }
+                    after
                 } else {
-                    binary(l_result, *operator, r_result)
+                    before
                 }
             }
             atomic @ Expression::Atomic(_) => atomic.clone(),
-        };
-        if let Some(operation) = Operation::new(self, &result, Law::EliminationOfImplication) {
-            operations.push(operation);
         }
-        result
     }
 
     /// Eliminate double negations from the expression.
@@ -112,10 +116,16 @@ impl Expression {
     fn double_negation_elimination(&self, operations: &mut Vec<Operation>) -> Self {
         let result = match self {
             Expression::Not(expr) => {
+                let before = not(expr.double_negation_elimination(operations));
                 if let Expression::Not(inner) = expr.deref() {
-                    inner.double_negation_elimination(operations)
+                    let after = inner.double_negation_elimination(operations);
+                    dbg!(before.to_string(), after.to_string());
+                    if let Some(operation) = Operation::new(&before, &after, Law::DoubleNegationElimination) {
+                        operations.push(operation);
+                    }
+                    after
                 } else {
-                    not(expr.double_negation_elimination(operations))
+                    before
                 }
             }
             Expression::Binary { left, operator, right } => {
@@ -125,9 +135,9 @@ impl Expression {
             }
             atomic @ Expression::Atomic(_) => atomic.clone(),
         };
-        if let Some(operation) = Operation::new(self, &result, Law::DoubleNegationElimination) {
-            operations.push(operation);
-        }
+        // if let Some(operation) = Operation::new(self, &result, Law::DoubleNegationElimination) {
+        //     operations.push(operation);
+        // }
         result
     }
 
@@ -285,7 +295,7 @@ mod tests {
         assert_eq!(operations[0].before, "b ➔ c");
         assert_eq!(operations[0].after, "¬b ⋁ c");
         assert_eq!(operations[1].law, Law::EliminationOfImplication);
-        assert_eq!(operations[1].before, "a ➔ b ➔ c");
+        assert_eq!(operations[1].before, "a ➔ ¬b ⋁ c");
         assert_eq!(operations[1].after, "¬a ⋁ ¬b ⋁ c");
     }
 
@@ -294,6 +304,7 @@ mod tests {
         let mut operations = vec![];
         let expression = and(atomic("a"), atomic("b")).elimination_of_implication(&mut operations);
         assert_eq!(expression, and(atomic("a"), atomic("b")));
+        assert_eq!(operations.len(), 0);
     }
 
     #[test]
@@ -301,6 +312,7 @@ mod tests {
         let mut operations = vec![];
         let expression = or(atomic("a"), and(atomic("b"), atomic("c"))).elimination_of_implication(&mut operations);
         assert_eq!(expression, or(atomic("a"), and(atomic("b"), atomic("c"))));
+        assert_eq!(operations.len(), 0);
     }
 
     #[test]
@@ -336,7 +348,7 @@ mod tests {
         assert_eq!(operations[0].after, "¬a");
         assert_eq!(operations[1].law, Law::DoubleNegationElimination);
         assert_eq!(operations[1].before, "¬¬¬¬¬a");
-        assert_eq!(operations[1].after, "¬a");
+        assert_eq!(operations[1].after, "¬¬¬a");
     }
 
     #[test]

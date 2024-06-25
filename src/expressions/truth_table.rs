@@ -501,7 +501,7 @@ mod tests {
     fn test_complex_expression() {
         let expression = implies(and(atomic("A"), atomic("B")), or(atomic("C"), atomic("D")));
         let header = TruthTable::extract_header(&expression);
-        assert_eq!(header, vec!["A", "B", "A ⋀ B", "C", "D", "C ⋁ D", "A ⋀ B ➔ (C ⋁ D)"]);
+        assert_eq!(header, vec!["A", "B", "A ⋀ B", "C", "D", "C ⋁ D", "A ⋀ B ➔ C ⋁ D"]);
     }
 
     #[test]

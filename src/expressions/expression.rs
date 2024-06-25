@@ -93,7 +93,7 @@ impl Display for Expression {
                     format!("{} ⋀ {}", fmt_helper(left, Some(expression)), fmt_helper(right, Some(expression)))
                 }
                 Expression::Binary { left, operator: BinaryOperator::Or, right } => {
-                    if parent.is_none() || matches!(parent, Some(Expression::Binary { operator: BinaryOperator::Or, .. })) {
+                    if parent.is_none() || matches!(parent, Some(Expression::Binary { operator: BinaryOperator::Or | BinaryOperator::Implication, .. })) {
                         format!("{} ⋁ {}", fmt_helper(left, Some(expression)), fmt_helper(right, Some(expression)))
                     } else {
                         format!("({} ⋁ {})", fmt_helper(left, Some(expression)), fmt_helper(right, Some(expression)))
