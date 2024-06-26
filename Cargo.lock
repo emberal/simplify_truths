@@ -577,7 +577,6 @@ dependencies = [
  "nom",
  "serde",
  "tokio",
- "tower",
  "tower-http",
  "tracing",
  "tracing-subscriber",
