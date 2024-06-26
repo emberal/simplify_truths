@@ -138,7 +138,7 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 [[package]]
 name = "derive"
 version = "1.0.0"
-source = "git+https://github.com/emberal/rust-lib.git?tag=1.0.0#d5974dda2071355115090e26175b657ee82b719b"
+source = "git+https://github.com/emberal/rust-lib.git?tag=1.1.1#752d1a9d102a6ed7026909a46d4e0b2cb1e0cb3d"
 dependencies = [
  "quote",
  "syn",
@@ -173,6 +173,12 @@ name = "futures-core"
 version = "0.3.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dfc6580bb841c5a68e9ef15c77ccc837b40a7504914d52e47b8b0e9bbda25a1d"
+
+[[package]]
+name = "futures-sink"
+version = "0.3.30"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9fb8e00e87438d937621c1c6269e53f536c14d3fbd6a042bb24879e57d474fb5"
 
 [[package]]
 name = "futures-task"
@@ -304,13 +310,19 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "lib"
-version = "1.0.0"
-source = "git+https://github.com/emberal/rust-lib.git?tag=1.0.0#d5974dda2071355115090e26175b657ee82b719b"
+version = "1.1.1"
+source = "git+https://github.com/emberal/rust-lib.git?tag=1.1.1#752d1a9d102a6ed7026909a46d4e0b2cb1e0cb3d"
 dependencies = [
  "axum",
  "derive",
  "nom",
  "serde",
+ "tokio",
+ "tokio-util",
+ "tower",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -645,6 +657,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "tokio-util"
+version = "0.7.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9cf6b47b3771c49ac75ad09a6162f53ad4b8088b76ac60e8ec1455b31a189fe1"
+dependencies = [
+ "bytes",
+ "futures-core",
+ "futures-sink",
+ "pin-project-lite",
+ "tokio",
 ]
 
 [[package]]
