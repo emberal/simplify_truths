@@ -114,31 +114,24 @@ impl Expression {
     /// This is done by replacing `¬¬a` with `a`.
     /// This function is recursive and will continue to eliminate double negations until none are left.
     fn double_negation_elimination(&self, operations: &mut Vec<Operation>) -> Self {
-        let result = match self {
+        match self {
             Expression::Not(expr) => {
-                let before = not(expr.double_negation_elimination(operations));
-                if let Expression::Not(inner) = expr.deref() {
-                    let after = inner.double_negation_elimination(operations);
-                    dbg!(before.to_string(), after.to_string());
-                    if let Some(operation) = Operation::new(&before, &after, Law::DoubleNegationElimination) {
+                if let Expression::Not(after) = expr.deref() {
+                    if let Some(operation) = Operation::new(self, after, Law::DoubleNegationElimination) {
                         operations.push(operation);
                     }
-                    after
+                    after.double_negation_elimination(operations)
                 } else {
-                    before
+                    self.clone()
                 }
             }
             Expression::Binary { left, operator, right } => {
                 let left = left.double_negation_elimination(operations);
                 let right = right.double_negation_elimination(operations);
-                binary(left.clone(), *operator, right.clone())
+                binary(left, *operator, right)
             }
             atomic @ Expression::Atomic(_) => atomic.clone(),
-        };
-        // if let Some(operation) = Operation::new(self, &result, Law::DoubleNegationElimination) {
-        //     operations.push(operation);
-        // }
-        result
+        }
     }
 
     fn de_morgans_laws(&self, operations: &mut Vec<Operation>) -> Self {
@@ -344,11 +337,11 @@ mod tests {
         assert_eq!(expression, not(atomic("a")));
         assert_eq!(operations.len(), 2);
         assert_eq!(operations[0].law, Law::DoubleNegationElimination);
-        assert_eq!(operations[0].before, "¬¬¬a");
-        assert_eq!(operations[0].after, "¬a");
+        assert_eq!(operations[0].before, "¬¬¬¬¬a");
+        assert_eq!(operations[0].after, "¬¬¬a");
         assert_eq!(operations[1].law, Law::DoubleNegationElimination);
-        assert_eq!(operations[1].before, "¬¬¬¬¬a");
-        assert_eq!(operations[1].after, "¬¬¬a");
+        assert_eq!(operations[1].before, "¬¬¬a");
+        assert_eq!(operations[1].after, "¬a");
     }
 
     #[test]
@@ -363,8 +356,13 @@ mod tests {
         let mut operations = vec![];
         let expression = and(or(not(not(atomic("a"))), atomic("b")), not(not(atomic("c")))).double_negation_elimination(&mut operations);
         assert_eq!(expression, and(or(atomic("a"), atomic("b")), atomic("c")));
-        assert_eq!(operations.len(), 4);
-        assert!(operations.into_iter().map(|operation| operation.law).all(|law| law == Law::DoubleNegationElimination));
+        assert_eq!(operations.len(), 2);
+        assert_eq!(operations[0].law, Law::DoubleNegationElimination);
+        assert_eq!(operations[0].before, "¬¬a");
+        assert_eq!(operations[0].after, "a");
+        assert_eq!(operations[1].law, Law::DoubleNegationElimination);
+        assert_eq!(operations[1].before, "¬¬c");
+        assert_eq!(operations[1].after, "c");
     }
 
     #[test]
@@ -385,7 +383,7 @@ mod tests {
         assert_eq!(expression, and(not(atomic("a")), not(atomic("b"))));
         assert_eq!(operations.len(), 1);
         assert_eq!(operations[0].law, Law::DeMorgansLaws);
-        assert_eq!(operations[0].before, "¬((a ⋁ b))");
+        assert_eq!(operations[0].before, "¬(a ⋁ b)");
         assert_eq!(operations[0].after, "¬a ⋀ ¬b");
     }
 
@@ -394,8 +392,13 @@ mod tests {
         let mut operations = vec![];
         let expression = not(or(and(atomic("a"), atomic("b")), atomic("c"))).de_morgans_laws(&mut operations); // ¬(a ⋀ b ⋁ c)
         assert_eq!(expression, and(or(not(atomic("a")), not(atomic("b"))), not(atomic("c")))); // ¬(a ⋀ b) ⋀ ¬c == (¬a ⋁ ¬b) ⋀ ¬c
-        assert_eq!(operations.len(), 3);
-        assert!(operations.into_iter().map(|operation| operation.law).all(|law| law == Law::DeMorgansLaws));
+        assert_eq!(operations.len(), 2);
+        assert_eq!(operations[0].law, Law::DeMorgansLaws);
+        assert_eq!(operations[0].before, "¬(a ⋀ b ⋁ c)");
+        assert_eq!(operations[0].after, "¬(a ⋀ b) ⋀ ¬c");
+        assert_eq!(operations[1].law, Law::DeMorgansLaws);
+        assert_eq!(operations[1].before, "¬(a ⋀ b)");
+        assert_eq!(operations[1].after, "¬a ⋁ ¬b");
     }
 
     #[test]
