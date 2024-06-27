@@ -3,7 +3,7 @@ use lib::nom::util::IntoResult;
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while, take_while1};
 use nom::character::complete::char;
-use nom::combinator::opt;
+use nom::combinator::{opt, peek};
 use nom::error::Error;
 use nom::IResult;
 use nom::sequence::{pair, preceded};
@@ -28,7 +28,7 @@ fn left_hand_side(input: &str) -> IResult<&str, Expression> {
     alt((
         value,
         not_expression,
-        parenthesized(complete_expression)
+        parenthesized_expression
     ))(input)
 }
 
@@ -54,9 +54,16 @@ fn operator_combinators(expression: Expression) -> impl Fn(&str) -> IResult<&str
     }
 }
 
-fn complete_expression(input: &str) -> IResult<&str, Expression> {
-    let (remaining, atomic) = left_hand_side(input)?;
-    operator_combinators(atomic.clone())(remaining)
+fn parenthesized_expression(input: &str) -> IResult<&str, Expression> {
+    parenthesized(|input| {
+        let (remaining, atomic) = left_hand_side(input)?;
+        let (remaining, expression) = operator_combinators(atomic)(remaining)?;
+        if peek(trim(char(')')))(remaining).is_ok() {
+            Ok((remaining, expression))
+        } else {
+            operator_combinators(expression)(remaining)
+        }
+    })(input)
 }
 
 fn and_expression<'a>(previous: Expression) -> impl Fn(&'a str) -> IResult<&'a str, Expression> {
@@ -348,5 +355,12 @@ mod tests {
         let input = "(a | b)";
         let result = super::_parse_expression(input);
         assert_eq!(result, Ok(("", or(atomic("a"), atomic("b")))));
+    }
+
+    #[test]
+    fn test_parenthesized_expression_3_atomics() {
+        let input = "(A | B | C)";
+        let result = super::parenthesized_expression(input);
+        assert_eq!(result, Ok(("", or(or(atomic("A"), atomic("B")), atomic("C")))));
     }
 }
