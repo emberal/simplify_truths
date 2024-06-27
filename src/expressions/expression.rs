@@ -15,6 +15,12 @@ pub enum Expression {
     Atomic(String),
 }
 
+impl PartialEq<Rc<Expression>> for Expression {
+    fn eq(&self, other: &Rc<Expression>) -> bool {
+        self == other.as_ref()
+    }
+}
+
 impl Expression {
     pub fn is_atomic(&self) -> bool {
         match self {
@@ -63,6 +69,22 @@ impl Expression {
             (left, Expression::Not(right)) => left.eq(right.as_ref(), ignore_case),
             _ => false,
         }
+    }
+
+    pub fn is_in(&self, other: &Self) -> bool {
+        if let Expression::Binary { left, right, .. } = other {
+            self == left || self == right
+        } else {
+            false
+        }
+    }
+
+    pub fn is_or_expression(&self) -> bool {
+        matches!(self, Expression::Binary { operator: BinaryOperator::Or, .. })
+    }
+
+    pub fn is_and_expression(&self) -> bool {
+        matches!(self, Expression::Binary { operator: BinaryOperator::And, .. })
     }
 }
 
