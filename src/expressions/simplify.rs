@@ -21,9 +21,10 @@ pub enum Law {
     CommutativeLaw,
 }
 
+// TODO refactor
 #[macro_export]
 macro_rules! absorption_law_opposites {
-    ($left:expr, $right:expr, $operations:expr, $op:pat, $func:expr, $ignore_case:expr) => {
+    ($left:expr, $right:expr, $operations:expr, $this_op:pat, $op:pat, $func:expr, $ignore_case:expr) => {
         {
             let before = $func($left.clone(), $right.clone());
             match ($left.as_ref(), $right.as_ref()) {
@@ -31,7 +32,22 @@ macro_rules! absorption_law_opposites {
                     let result = evaluate_equals_or_opposites($left.as_ref(), right_left, right_right, $func, $ignore_case, $operations).unwrap_or(
                         $func($left.absorption_law($operations, $ignore_case), $right.absorption_law($operations, $ignore_case))
                     );
-                    dbg!(before.to_string(), result.to_string());
+                    if let Some(operation) = Operation::new(&before, &result, Law::AbsorptionLaw) {
+                        $operations.push(operation);
+                    }
+                    result
+                }
+                (_, Expression::Binary { left: right_left, operator: $this_op, .. })
+                if $left.opposite_eq(right_left, $ignore_case) => {
+                    let result = $func($left.clone(), right_left.clone());
+                    if let Some(operation) = Operation::new(&before, &result, Law::AbsorptionLaw) {
+                        $operations.push(operation);
+                    }
+                    result
+                }
+                (_, Expression::Binary { right: right_right, operator: $this_op, .. })
+                if $left.opposite_eq(right_right, $ignore_case) => {
+                    let result = $func($left.clone(), right_right.clone());
                     if let Some(operation) = Operation::new(&before, &result, Law::AbsorptionLaw) {
                         $operations.push(operation);
                     }
@@ -41,7 +57,22 @@ macro_rules! absorption_law_opposites {
                     let result = evaluate_equals_or_opposites($right.as_ref(), left_left, left_right, $func, $ignore_case, $operations).unwrap_or(
                         $func($left.absorption_law($operations, $ignore_case), $right.absorption_law($operations, $ignore_case))
                     );
-                    dbg!(before.to_string(), result.to_string());
+                    if let Some(operation) = Operation::new(&before, &result, Law::AbsorptionLaw) {
+                        $operations.push(operation);
+                    }
+                    result
+                }
+                (Expression::Binary { left: left_left, operator: $this_op, .. }, _)
+                if $right.opposite_eq(left_left, $ignore_case) => {
+                    let result = $func($right.clone(), left_left.clone());
+                    if let Some(operation) = Operation::new(&before, &result, Law::AbsorptionLaw) {
+                        $operations.push(operation);
+                    }
+                    result
+                }
+                (Expression::Binary { right: left_right, operator: $this_op, .. }, _)
+                if $right.opposite_eq(left_right, $ignore_case) => {
+                    let result = $func($right.clone(), left_right.clone());
                     if let Some(operation) = Operation::new(&before, &result, Law::AbsorptionLaw) {
                         $operations.push(operation);
                     }
@@ -198,28 +229,57 @@ impl Expression {
                 left.absorption_law(operations, ignore_case)
             }
             Expression::Binary { left, operator: BinaryOperator::And, right }
-            if left.is_in(right) && right.is_or_expression() => {
+            if left.is_in(right) && right.is_or() => {
                 if let Some(operation) = Operation::new(self, left, Law::AbsorptionLaw) {
                     operations.push(operation);
                 }
                 left.absorption_law(operations, ignore_case)
             }
             Expression::Binary { left, operator: BinaryOperator::And, right }
-            if right.is_in(left) && left.is_or_expression() => {
+            if right.is_in(left) && left.is_or() => {
                 if let Some(operation) = Operation::new(self, right, Law::AbsorptionLaw) {
                     operations.push(operation);
                 }
                 right.absorption_law(operations, ignore_case)
             }
             Expression::Binary { left, operator: BinaryOperator::Or, right }
-            if right.is_in(left) && left.is_and_expression() => {
+            if right.is_in(left) && left.is_and() => {
                 if let Some(operation) = Operation::new(self, right, Law::AbsorptionLaw) {
                     operations.push(operation);
                 }
                 right.absorption_law(operations, ignore_case)
             }
             Expression::Binary { left, operator: BinaryOperator::Or, right }
-            if left.is_in(right) && right.is_and_expression() => {
+            if left.is_in(right) && right.is_and() => {
+                if let Some(operation) = Operation::new(self, left, Law::AbsorptionLaw) {
+                    operations.push(operation);
+                }
+                left.absorption_law(operations, ignore_case)
+            }
+            Expression::Binary { left, operator: BinaryOperator::Or, right }
+            if left.is_in(right) && right.is_or() => {
+                if let Some(operation) = Operation::new(self, left, Law::AbsorptionLaw) {
+                    operations.push(operation);
+                }
+                right.absorption_law(operations, ignore_case)
+            }
+            Expression::Binary { left, operator: BinaryOperator::Or, right }
+            if right.is_in(left) && left.is_or() => {
+                if let Some(operation) = Operation::new(self, right, Law::AbsorptionLaw) {
+                    operations.push(operation);
+                }
+                right.absorption_law(operations, ignore_case)
+            }
+            // TODO remove And from pattern and call matches instead of .is_and()
+            Expression::Binary { left, operator: BinaryOperator::And, right }
+            if left.is_in(right) && right.is_and() => {
+                if let Some(operation) = Operation::new(self, right, Law::AbsorptionLaw) {
+                    operations.push(operation);
+                }
+                right.absorption_law(operations, ignore_case)
+            }
+            Expression::Binary { left, operator: BinaryOperator::And, right }
+            if right.is_in(left) && left.is_and() => {
                 if let Some(operation) = Operation::new(self, left, Law::AbsorptionLaw) {
                     operations.push(operation);
                 }
@@ -239,10 +299,10 @@ impl Expression {
         match self {
             Expression::Binary { left, operator: BinaryOperator::And, right } => {
                 // TODO Refactor duplicate code with absorption_law!
-                absorption_law_opposites!(left, right, operations, BinaryOperator::Or, and, ignore_case)
+                absorption_law_opposites!(left, right, operations, BinaryOperator::And, BinaryOperator::Or, and, ignore_case)
             }
             Expression::Binary { left, operator: BinaryOperator::Or, right } => {
-                absorption_law_opposites!(left, right, operations, BinaryOperator::And, or, ignore_case)
+                absorption_law_opposites!(left, right, operations, BinaryOperator::Or, BinaryOperator::And, or, ignore_case)
             }
             Expression::Binary { left, operator, right } => binary(
                 left.absorb_opposites(operations, ignore_case),
@@ -507,7 +567,16 @@ mod tests {
     #[test]
     fn test_absorption_law_duplicate() {
         let mut operations = vec![];
-        let expression = or(not(atomic("a")), or(not(atomic("a")), or(atomic("a"), atomic("b")))).absorption_law(&mut operations, false);
+        let expression = or(
+            not(atomic("a")),
+            or(
+                not(atomic("a")),
+                or(
+                    atomic("a"),
+                    atomic("b"),
+                ),
+            ),
+        ).absorption_law(&mut operations, false);
         assert_eq!(expression, or(not(atomic("a")), or(atomic("a"), atomic("b"))));
         assert_eq!(operations.len(), 1);
     }

@@ -79,11 +79,11 @@ impl Expression {
         }
     }
 
-    pub fn is_or_expression(&self) -> bool {
+    pub fn is_or(&self) -> bool {
         matches!(self, Expression::Binary { operator: BinaryOperator::Or, .. })
     }
 
-    pub fn is_and_expression(&self) -> bool {
+    pub fn is_and(&self) -> bool {
         matches!(self, Expression::Binary { operator: BinaryOperator::And, .. })
     }
 }
