@@ -2,6 +2,32 @@ use std::rc::Rc;
 use crate::expressions::expression::Expression;
 use crate::expressions::operator::BinaryOperator;
 
+impl Expression {
+    #[inline]
+    #[must_use]
+    pub fn and(self, other: impl Into<Rc<Expression>>) -> Expression {
+        and(self, other)
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn or(self, other: impl Into<Rc<Expression>>) -> Expression {
+        or(self, other)
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn implies(self, other: impl Into<Rc<Expression>>) -> Expression {
+        implies(self, other)
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn not(self) -> Expression {
+        not(self)
+    }
+}
+
 #[inline]
 #[must_use]
 pub fn and<L, R>(left: L, right: R) -> Expression

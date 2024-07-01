@@ -9,7 +9,7 @@ use nom::IResult;
 use nom::sequence::{pair, preceded};
 
 use crate::expressions::expression::Expression;
-use crate::expressions::helpers::{and, atomic, implies, not, or};
+use crate::expressions::helpers::atomic;
 
 pub fn parse_expression(input: &str) -> Result<Expression, nom::Err<Error<&str>>> {
     exhausted(_parse_expression)(input).into_result()
@@ -72,7 +72,7 @@ fn and_expression<'a>(previous: Expression) -> impl Fn(&'a str) -> IResult<&'a s
             trim(char('&')),
             left_hand_side,
         )(input).map(|(remaining, right)| {
-            (remaining, and(previous.clone(), right))
+            (remaining, previous.clone().and(right))
         })
     }
 }
@@ -91,7 +91,7 @@ fn or_expression<'a>(previous: Expression) -> impl Fn(&'a str) -> IResult<&'a st
                 left_hand_side,
             )),
         )(input).map(|(remaining, right)| {
-            (remaining, or(previous.clone(), right))
+            (remaining, previous.clone().or(right))
         })
     }
 }
@@ -111,7 +111,7 @@ fn implication_expression<'a>(previous: Expression) -> impl Fn(&'a str) -> IResu
                 left_hand_side,
             )),
         )(input).map(|(remaining, right)| {
-            (remaining, implies(previous.clone(), right))
+            (remaining, previous.clone().implies(right))
         })
     }
 }
@@ -121,7 +121,7 @@ fn not_expression(input: &str) -> IResult<&str, Expression> {
         char('!'),
         left_hand_side,
     )(input).map(|(remaining, right)| {
-        (remaining, not(right))
+        (remaining, right.not())
     })
 }
 
