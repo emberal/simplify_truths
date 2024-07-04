@@ -16,4 +16,12 @@ impl BinaryOperator {
             BinaryOperator::Implication => !left || right,
         }
     }
+
+    pub fn is_and(&self) -> bool {
+        matches!(self, BinaryOperator::And)
+    }
+
+    pub fn is_or(&self) -> bool {
+        matches!(self, BinaryOperator::Or)
+    }
 }
