@@ -131,11 +131,11 @@ impl Expression {
         let mut operations: Vec<Operation> = vec![];
         let expression = self.elimination_of_implication(&mut operations)
             .de_morgans_laws(&mut operations)
-            .absorption_law(&mut operations, options.ignore_case)
             .absorb_opposites(&mut operations, options.ignore_case)
             // .associative_law(&mut operations)
             .distributive_law(&mut operations)
-            .double_negation_elimination(&mut operations);
+            .double_negation_elimination(&mut operations)
+            .absorption_law(&mut operations, options.ignore_case);
         // .commutative_law(&mut operations);
         (expression, operations)
     }
@@ -564,6 +564,34 @@ mod tests {
         assert_eq!(operations[0].law, Law::AbsorptionLaw);
         assert_eq!(operations[0].before, "¬a ⋀ b ⋁ a");
         assert_eq!(operations[0].after, "b ⋁ a");
+    }
+
+    // A ⋁ ¬B ⋁ A <=> ¬B ⋁ A
+    #[test]
+    fn test_absorption_law_duplicate_a_or_not_b() {
+        let mut operations = vec![];
+        let expression = atomic("a").or(not(atomic("b")).or(atomic("a")))
+            .absorption_law(&mut operations, Default::default())
+            .absorb_opposites(&mut operations, Default::default());
+        assert_eq!(expression, or(not(atomic("b")), atomic("a")));
+        assert_eq!(operations.len(), 1);
+        assert_eq!(operations[0].law, Law::AbsorptionLaw);
+        assert_eq!(operations[0].before, "a ⋁ ¬b ⋁ a");
+        assert_eq!(operations[0].after, "¬b ⋁ a");
+    }
+
+    // A ⋁ ¬B ⋁ A <=> ¬B ⋁ A
+    #[test]
+    fn test_absorption_law_duplicate_a_or_not_b_flipped() { // TODO works on master
+        let mut operations = vec![];
+        let expression = atomic("a").or(not(atomic("b"))).or(atomic("a"))
+            .absorption_law(&mut operations, Default::default())
+            .absorb_opposites(&mut operations, Default::default());
+        assert_eq!(expression, or(not(atomic("b")), atomic("a")));
+        assert_eq!(operations.len(), 1);
+        assert_eq!(operations[0].law, Law::AbsorptionLaw);
+        assert_eq!(operations[0].before, "a ⋁ ¬b ⋁ a");
+        assert_eq!(operations[0].after, "¬b ⋁ a");
     }
 
     #[test]
