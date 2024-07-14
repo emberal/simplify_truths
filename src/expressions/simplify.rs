@@ -360,9 +360,48 @@ impl Expression {
                 operator,
                 right,
             } if operator.is_or()
-                && (right.is_in(left) && (left.is_and() || left.is_or())
-                    || left.is_in(right) && right.is_or()) =>
+                && (right.is_in(left) && left.is_and() || left.is_in(right) && right.is_or()) =>
             {
+                if let Some(operation) = Operation::new(self, right, Law::AbsorptionLaw) {
+                    operations.push(operation);
+                }
+                right.absorption_law(operations, ignore_case)
+            }
+            Expression::Binary {
+                left,
+                operator: BinaryOperator::And,
+                right,
+            } if left.is_and() && right.is_in(left) => {
+                if let Some(operation) = Operation::new(self, left, Law::AbsorptionLaw) {
+                    operations.push(operation);
+                }
+                left.absorption_law(operations, ignore_case)
+            }
+            Expression::Binary {
+                left,
+                operator: BinaryOperator::And,
+                right,
+            } if right.is_and() && left.is_in(right) => {
+                if let Some(operation) = Operation::new(self, right, Law::AbsorptionLaw) {
+                    operations.push(operation);
+                }
+                right.absorption_law(operations, ignore_case)
+            }
+            Expression::Binary {
+                left,
+                operator: BinaryOperator::Or,
+                right,
+            } if left.is_or() && right.is_in(left) => {
+                if let Some(operation) = Operation::new(self, left, Law::AbsorptionLaw) {
+                    operations.push(operation);
+                }
+                left.absorption_law(operations, ignore_case)
+            }
+            Expression::Binary {
+                left,
+                operator: BinaryOperator::Or,
+                right,
+            } if right.is_or() && left.is_in(right) => {
                 if let Some(operation) = Operation::new(self, right, Law::AbsorptionLaw) {
                     operations.push(operation);
                 }
@@ -804,18 +843,16 @@ mod tests {
     // A ⋁ ¬B ⋁ A <=> ¬B ⋁ A
     #[test]
     fn test_absorption_law_duplicate_a_or_not_b_flipped() {
-        // TODO works on master
         let mut operations = vec![];
         let expression = atomic("a")
             .or(not(atomic("b")))
             .or(atomic("a"))
-            .absorption_law(&mut operations, Default::default())
-            .absorb_opposites(&mut operations, Default::default());
-        assert_eq!(expression, or(not(atomic("b")), atomic("a")));
+            .absorption_law(&mut operations, Default::default());
+        assert_eq!(expression, or(atomic("a"), not(atomic("b"))));
         assert_eq!(operations.len(), 1);
         assert_eq!(operations[0].law, Law::AbsorptionLaw);
         assert_eq!(operations[0].before, "a ⋁ ¬b ⋁ a");
-        assert_eq!(operations[0].after, "¬b ⋁ a");
+        assert_eq!(operations[0].after, "a ⋁ ¬b");
     }
 
     #[test]
