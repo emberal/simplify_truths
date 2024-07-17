@@ -1,5 +1,5 @@
 use axum::response::{IntoResponse, Response};
-use lib::derive::IntoResponse;
+use lib::into_response_derive::IntoResponse;
 use serde::Serialize;
 
 use crate::expressions::expression::Expression;
@@ -16,7 +16,11 @@ pub struct Operation {
 impl Operation {
     pub fn new(before: &Expression, after: &Expression, law: Law) -> Option<Self> {
         if before != after {
-            Some(Self { before: before.to_string(), after: after.to_string(), law })
+            Some(Self {
+                before: before.to_string(),
+                after: after.to_string(),
+                law,
+            })
         } else {
             None
         }

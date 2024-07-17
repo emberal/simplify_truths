@@ -15,4 +15,4 @@ serde = { version = "1.0.203", features = ["derive", "rc"] }
 axum = { version = "0.7.5", features = ["macros"] }
 tower-http = { version = "0.5.2", features = ["cors"] }
 
-lib = { git = "https://github.com/emberal/rust-lib.git", tag = "1.1.1", features = ["axum", "vec", "nom", "serde", "derive", "tokio"] }
+lib = { git = "https://github.com/emberal/rust-lib", tag = "1.4.1-hotfix", features = ["axum", "iter", "nom", "serde", "derive"] }

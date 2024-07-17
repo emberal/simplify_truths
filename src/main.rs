@@ -4,16 +4,16 @@ use tower_http::cors::CorsLayer;
 use crate::routing::routes::*;
 use crate::routing::routes::index::not_found;
 
+mod config;
 mod expressions;
 mod parsing;
 mod routing;
-mod config;
 mod utils;
 
 #[tokio::main]
 async fn main() {
     AppBuilder::new()
-        .routes(&[index::router(), simplify::router(), table::router()])
+        .routes([index::router(), simplify::router(), table::router()])
         .fallback(not_found)
         .cors(CorsLayer::permissive())
         .serve()

@@ -1,5 +1,5 @@
 use lib::nom::combinators::{exhausted, parenthesized, trim};
-use lib::nom::util::IntoResult;
+use lib::traits::IntoResult;
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while, take_while1};
 use nom::character::complete::char;
@@ -17,7 +17,9 @@ pub fn parse_expression(input: &str) -> Result<Expression, nom::Err<Error<&str>>
 
 fn _parse_expression(input: &str) -> IResult<&str, Expression> {
     let (remaining, atomic_expression) = left_hand_side(input)?;
-    if let (remaining, Some(complex_expression)) = opt(expression(atomic_expression.clone()))(remaining)? {
+    if let (remaining, Some(complex_expression)) =
+        opt(expression(atomic_expression.clone()))(remaining)?
+    {
         Ok((remaining, complex_expression))
     } else {
         Ok((remaining, atomic_expression))
@@ -25,11 +27,7 @@ fn _parse_expression(input: &str) -> IResult<&str, Expression> {
 }
 
 fn left_hand_side(input: &str) -> IResult<&str, Expression> {
-    alt((
-        value,
-        not_expression,
-        parenthesized_expression
-    ))(input)
+    alt((value, not_expression, parenthesized_expression))(input)
 }
 
 fn expression<'a>(previous: Expression) -> impl Fn(&'a str) -> IResult<&'a str, Expression> {
@@ -56,8 +54,8 @@ fn operator_combinators(expression: Expression) -> impl Fn(&str) -> IResult<&str
 
 fn parenthesized_expression(input: &str) -> IResult<&str, Expression> {
     parenthesized(|input| {
-        let (remaining, atomic) = left_hand_side(input)?;
-        let (remaining, expression) = operator_combinators(atomic)(remaining)?;
+        let (remaining, atomic) = trim(left_hand_side)(input)?;
+        let (remaining, expression) = trim(operator_combinators(atomic))(remaining)?;
         if peek(trim(char(')')))(remaining).is_ok() {
             Ok((remaining, expression))
         } else {
@@ -68,12 +66,8 @@ fn parenthesized_expression(input: &str) -> IResult<&str, Expression> {
 
 fn and_expression<'a>(previous: Expression) -> impl Fn(&'a str) -> IResult<&'a str, Expression> {
     move |input: &'a str| {
-        preceded(
-            trim(char('&')),
-            left_hand_side,
-        )(input).map(|(remaining, right)| {
-            (remaining, previous.clone().and(right))
-        })
+        preceded(trim(char('&')), left_hand_side)(input)
+            .map(|(remaining, right)| (remaining, previous.clone().and(right)))
     }
 }
 
@@ -84,15 +78,8 @@ fn complete_and(input: &str) -> IResult<&str, Expression> {
 
 fn or_expression<'a>(previous: Expression) -> impl Fn(&'a str) -> IResult<&'a str, Expression> {
     move |input: &'a str| {
-        preceded(
-            trim(char('|')),
-            alt((
-                complete_and,
-                left_hand_side,
-            )),
-        )(input).map(|(remaining, right)| {
-            (remaining, previous.clone().or(right))
-        })
+        preceded(trim(char('|')), alt((complete_and, left_hand_side)))(input)
+            .map(|(remaining, right)| (remaining, previous.clone().or(right)))
     }
 }
 
@@ -101,28 +88,20 @@ fn complete_or(input: &str) -> IResult<&str, Expression> {
     or_expression(atomic.clone())(remaining)
 }
 
-fn implication_expression<'a>(previous: Expression) -> impl Fn(&'a str) -> IResult<&'a str, Expression> {
+fn implication_expression<'a>(
+    previous: Expression,
+) -> impl Fn(&'a str) -> IResult<&'a str, Expression> {
     move |input: &'a str| {
         preceded(
             trim(tag("=>")),
-            alt((
-                complete_and,
-                complete_or,
-                left_hand_side,
-            )),
-        )(input).map(|(remaining, right)| {
-            (remaining, previous.clone().implies(right))
-        })
+            alt((complete_and, complete_or, left_hand_side)),
+        )(input)
+        .map(|(remaining, right)| (remaining, previous.clone().implies(right)))
     }
 }
 
 fn not_expression(input: &str) -> IResult<&str, Expression> {
-    preceded(
-        char('!'),
-        left_hand_side,
-    )(input).map(|(remaining, right)| {
-        (remaining, right.not())
-    })
+    preceded(char('!'), left_hand_side)(input).map(|(remaining, right)| (remaining, right.not()))
 }
 
 fn value(input: &str) -> IResult<&str, Expression> {
@@ -130,10 +109,10 @@ fn value(input: &str) -> IResult<&str, Expression> {
         take_while1(|c: char| c.is_ascii_alphabetic()),
         take_while(|c: char| c.is_ascii_alphanumeric() || c == '_'),
     )(input)
-        .map(|(remaining, (first, rest))| {
-            let value = format!("{first}{rest}");
-            (remaining, atomic(value))
-        })
+    .map(|(remaining, (first, rest))| {
+        let value = format!("{first}{rest}");
+        (remaining, atomic(value))
+    })
 }
 
 #[cfg(test)]
@@ -144,49 +123,62 @@ mod tests {
     fn test_parse() {
         let input = "a & b => c";
         let result = super::parse_expression(input);
-        assert_eq!(result, Ok(implies(and(atomic("a"), atomic("b")), atomic("c"))));
+        assert_eq!(
+            result,
+            Ok(implies(and(atomic("a"), atomic("b")), atomic("c")))
+        );
     }
 
     #[test]
     fn test_parse_complex() {
         let input = "a => b | !(!c | d & e) => b";
         let result = super::parse_expression(input);
-        assert_eq!(result, Ok(implies(
-            implies(
-                atomic("a"),
-                or(
-                    atomic("b"),
-                    not(
-                        or(
-                            not(atomic("c")),
-                            and(atomic("d"), atomic("e")),
-                        )
+        assert_eq!(
+            result,
+            Ok(implies(
+                implies(
+                    atomic("a"),
+                    or(
+                        atomic("b"),
+                        not(or(not(atomic("c")), and(atomic("d"), atomic("e")),)),
                     ),
                 ),
-            ),
-            atomic("b"),
-        )));
+                atomic("b"),
+            ))
+        );
     }
 
     #[test]
     fn test_operator_weight() {
         let input = "A & B | C => D | E & F";
         let result = super::parse_expression(input);
-        assert_eq!(result, Ok(implies(or(and(atomic("A"), atomic("B")), atomic("C")), or(atomic("D"), and(atomic("E"), atomic("F"))))));
+        assert_eq!(
+            result,
+            Ok(implies(
+                or(and(atomic("A"), atomic("B")), atomic("C")),
+                or(atomic("D"), and(atomic("E"), atomic("F")))
+            ))
+        );
     }
 
     #[test]
     fn test_implies_chain() {
         let input = "a => b => c";
         let result = super::parse_expression(input);
-        assert_eq!(result, Ok(implies(implies(atomic("a"), atomic("b")), atomic("c"))));
+        assert_eq!(
+            result,
+            Ok(implies(implies(atomic("a"), atomic("b")), atomic("c")))
+        );
     }
 
     #[test]
     fn test_parse_parentheses() {
         let input = "a & (b => c)";
         let result = super::parse_expression(input);
-        assert_eq!(result, Ok(and(atomic("a"), implies(atomic("b"), atomic("c")))));
+        assert_eq!(
+            result,
+            Ok(and(atomic("a"), implies(atomic("b"), atomic("c"))))
+        );
     }
 
     #[test]
@@ -228,7 +220,10 @@ mod tests {
     fn test_expression_with_not_inside_parentheses() {
         let input = "a & !(b | c)";
         let result = super::parse_expression(input);
-        assert_eq!(result, Ok(and(atomic("a"), not(or(atomic("b"), atomic("c"))))));
+        assert_eq!(
+            result,
+            Ok(and(atomic("a"), not(or(atomic("b"), atomic("c")))))
+        );
     }
 
     #[test]
@@ -277,7 +272,19 @@ mod tests {
     fn test_or_chain() {
         let input = "a | b | c | d | e | f | g";
         let result = super::parse_expression(input);
-        assert_eq!(result, Ok(or(or(or(or(or(or(atomic("a"), atomic("b")), atomic("c")), atomic("d")), atomic("e")), atomic("f")), atomic("g"))));
+        assert_eq!(
+            result,
+            Ok(or(
+                or(
+                    or(
+                        or(or(or(atomic("a"), atomic("b")), atomic("c")), atomic("d")),
+                        atomic("e")
+                    ),
+                    atomic("f")
+                ),
+                atomic("g")
+            ))
+        );
     }
 
     #[test]
@@ -300,7 +307,10 @@ mod tests {
         let expression = atomic("a");
         let input = " & b | c";
         let result = super::expression(expression)(input);
-        assert_eq!(result, Ok(("", or(and(atomic("a"), atomic("b")), atomic("c")))));
+        assert_eq!(
+            result,
+            Ok(("", or(and(atomic("a"), atomic("b")), atomic("c"))))
+        );
     }
 
     #[test]
@@ -308,7 +318,13 @@ mod tests {
         let expression = atomic("a");
         let input = " & b | c => d";
         let result = super::expression(expression)(input);
-        assert_eq!(result, Ok(("", implies(or(and(atomic("a"), atomic("b")), atomic("c")), atomic("d")))));
+        assert_eq!(
+            result,
+            Ok((
+                "",
+                implies(or(and(atomic("a"), atomic("b")), atomic("c")), atomic("d"))
+            ))
+        );
     }
 
     #[test]
@@ -316,14 +332,26 @@ mod tests {
         let expression = atomic("a");
         let input = " & (b | c) => d";
         let result = super::expression(expression)(input);
-        assert_eq!(result, Ok(("", implies(and(atomic("a"), or(atomic("b"), atomic("c"))), atomic("d")))));
+        assert_eq!(
+            result,
+            Ok((
+                "",
+                implies(and(atomic("a"), or(atomic("b"), atomic("c"))), atomic("d"))
+            ))
+        );
     }
 
     #[test]
     fn test_expression_parentheses_and() {
         let input = "(a & b) | (c & d)";
         let result = super::_parse_expression(input);
-        assert_eq!(result, Ok(("", or(and(atomic("a"), atomic("b")), and(atomic("c"), atomic("d"))))));
+        assert_eq!(
+            result,
+            Ok((
+                "",
+                or(and(atomic("a"), atomic("b")), and(atomic("c"), atomic("d")))
+            ))
+        );
     }
 
     #[test]
@@ -331,7 +359,16 @@ mod tests {
         let expression = atomic("a");
         let input = " & b | (c => d)";
         let result = super::expression(expression)(input);
-        assert_eq!(result, Ok(("", or(and(atomic("a"), atomic("b")), implies(atomic("c"), atomic("d"))))));
+        assert_eq!(
+            result,
+            Ok((
+                "",
+                or(
+                    and(atomic("a"), atomic("b")),
+                    implies(atomic("c"), atomic("d"))
+                )
+            ))
+        );
     }
 
     #[test]
@@ -339,7 +376,16 @@ mod tests {
         let expression = atomic("a");
         let input = " & (b | (c => d))";
         let result = super::expression(expression)(input);
-        assert_eq!(result, Ok(("", and(atomic("a"), or(atomic("b"), implies(atomic("c"), atomic("d")))))));
+        assert_eq!(
+            result,
+            Ok((
+                "",
+                and(
+                    atomic("a"),
+                    or(atomic("b"), implies(atomic("c"), atomic("d")))
+                )
+            ))
+        );
     }
 
     #[test]
@@ -361,6 +407,9 @@ mod tests {
     fn test_parenthesized_expression_3_atomics() {
         let input = "(A | B | C)";
         let result = super::parenthesized_expression(input);
-        assert_eq!(result, Ok(("", or(or(atomic("A"), atomic("B")), atomic("C")))));
+        assert_eq!(
+            result,
+            Ok(("", or(or(atomic("A"), atomic("B")), atomic("C"))))
+        );
     }
 }
