@@ -11,7 +11,11 @@ use crate::parsing::expression_parser::parse_expression;
 #[serde(rename_all = "camelCase")]
 pub enum Expression {
     Not(Rc<Expression>),
-    Binary { left: Rc<Expression>, operator: BinaryOperator, right: Rc<Expression> },
+    Binary {
+        left: Rc<Expression>,
+        operator: BinaryOperator,
+        right: Rc<Expression>,
+    },
     Atomic(String),
 }
 
@@ -26,7 +30,7 @@ impl Expression {
         match self {
             Expression::Not(expr) => expr.is_atomic(),
             Expression::Binary { .. } => false,
-            Expression::Atomic(_) => true
+            Expression::Atomic(_) => true,
         }
     }
 
@@ -38,15 +42,28 @@ impl Expression {
                 values.extend(right.get_atomic_values());
                 values
             }
-            Expression::Atomic(value) => HashSet::from([value.clone()])
+            Expression::Atomic(value) => HashSet::from([value.clone()]),
         }
     }
 
+    //TODO replace with eq_ignore_case and use a macro to select correct eq function
     pub fn eq(&self, other: &Self, ignore_case: bool) -> bool {
         match (self, other) {
-            (Expression::Not(left), Expression::Not(right)) => Expression::eq(left, right, ignore_case),
-            (Expression::Binary { left: left_left, operator: left_operator, right: left_right },
-                Expression::Binary { left: right_left, operator: right_operator, right: right_right }) => {
+            (Expression::Not(left), Expression::Not(right)) => {
+                Expression::eq(left, right, ignore_case)
+            }
+            (
+                Expression::Binary {
+                    left: left_left,
+                    operator: left_operator,
+                    right: left_right,
+                },
+                Expression::Binary {
+                    left: right_left,
+                    operator: right_operator,
+                    right: right_right,
+                },
+            ) => {
                 Expression::eq(left_left, right_left, ignore_case)
                     && left_operator == right_operator
                     && Expression::eq(left_right, right_right, ignore_case)
@@ -58,7 +75,7 @@ impl Expression {
                     left == right
                 }
             }
-            _ => false
+            _ => false,
         }
     }
 
@@ -80,11 +97,23 @@ impl Expression {
     }
 
     pub fn is_or(&self) -> bool {
-        matches!(self, Expression::Binary { operator: BinaryOperator::Or, .. })
+        matches!(
+            self,
+            Expression::Binary {
+                operator: BinaryOperator::Or,
+                ..
+            }
+        )
     }
 
     pub fn is_and(&self) -> bool {
-        matches!(self, Expression::Binary { operator: BinaryOperator::And, .. })
+        matches!(
+            self,
+            Expression::Binary {
+                operator: BinaryOperator::And,
+                ..
+            }
+        )
     }
 }
 
@@ -109,20 +138,61 @@ impl Display for Expression {
 
         fn fmt_helper(expression: &Expression, parent: Option<&Expression>) -> String {
             match expression {
-                Expression::Not(expr) if expr.is_atomic() => format!("¬{}", fmt_helper(expr, Some(expression))),
-                Expression::Not(expr) => format!("¬({})", fmt_helper(expr, Some(expression))),
-                Expression::Binary { left, operator: BinaryOperator::And, right } => {
-                    format!("{} ⋀ {}", fmt_helper(left, Some(expression)), fmt_helper(right, Some(expression)))
+                Expression::Not(expr) if expr.is_atomic() => {
+                    format!("¬{}", fmt_helper(expr, Some(expression)))
                 }
-                Expression::Binary { left, operator: BinaryOperator::Or, right } => {
-                    if parent.is_none() || matches!(parent, Some(Expression::Not(_) | Expression::Binary { operator: BinaryOperator::Or | BinaryOperator::Implication, .. })) {
-                        format!("{} ⋁ {}", fmt_helper(left, Some(expression)), fmt_helper(right, Some(expression)))
+                Expression::Not(expr) => format!("¬({})", fmt_helper(expr, Some(expression))),
+                Expression::Binary {
+                    left,
+                    operator: BinaryOperator::And,
+                    right,
+                } => {
+                    format!(
+                        "{} ⋀ {}",
+                        fmt_helper(left, Some(expression)),
+                        fmt_helper(right, Some(expression))
+                    )
+                }
+                Expression::Binary {
+                    left,
+                    operator: BinaryOperator::Or,
+                    right,
+                } => {
+                    if parent.is_none()
+                        || matches!(
+                            parent,
+                            Some(
+                                Expression::Not(_)
+                                    | Expression::Binary {
+                                        operator: BinaryOperator::Or | BinaryOperator::Implication,
+                                        ..
+                                    }
+                            )
+                        )
+                    {
+                        format!(
+                            "{} ⋁ {}",
+                            fmt_helper(left, Some(expression)),
+                            fmt_helper(right, Some(expression))
+                        )
                     } else {
-                        format!("({} ⋁ {})", fmt_helper(left, Some(expression)), fmt_helper(right, Some(expression)))
+                        format!(
+                            "({} ⋁ {})",
+                            fmt_helper(left, Some(expression)),
+                            fmt_helper(right, Some(expression))
+                        )
                     }
                 }
-                Expression::Binary { left, operator: BinaryOperator::Implication, right } => {
-                    format!("{} ➔ {}", fmt_helper(left, Some(expression)), fmt_helper(right, Some(expression)))
+                Expression::Binary {
+                    left,
+                    operator: BinaryOperator::Implication,
+                    right,
+                } => {
+                    format!(
+                        "{} ➔ {}",
+                        fmt_helper(left, Some(expression)),
+                        fmt_helper(right, Some(expression))
+                    )
                 }
                 Expression::Atomic(value) => value.clone(),
             }
@@ -179,102 +249,55 @@ mod tests {
 
     #[test]
     fn test_expression_a_and_not_b_display() {
-        let expression = and(
-            atomic("a"),
-            not(atomic("b")),
-        );
+        let expression = and(atomic("a"), not(atomic("b")));
         assert_eq!(expression.to_string(), "a ⋀ ¬b");
     }
 
     #[test]
     fn test_expression_a_or_b_and_c_display() {
-        let expression = or(
-            atomic("a"),
-            and(
-                atomic("b"),
-                atomic("c"),
-            ));
+        let expression = or(atomic("a"), and(atomic("b"), atomic("c")));
         assert_eq!(expression.to_string(), "a ⋁ b ⋀ c");
     }
 
     #[test]
     fn test_expression_a_or_b() {
-        let expression = or(
-            atomic("a"),
-            atomic("b"),
-        );
+        let expression = or(atomic("a"), atomic("b"));
         assert_eq!(expression.to_string(), "a ⋁ b");
     }
 
     #[test]
     fn test_expression_double_or() {
-        let expression = or(
-            atomic("a"),
-            or(
-                atomic("b"),
-                atomic("c"),
-            ),
-        );
+        let expression = or(atomic("a"), or(atomic("b"), atomic("c")));
         assert_eq!(expression.to_string(), "a ⋁ b ⋁ c");
     }
 
     #[test]
     fn test_expression_triple_or() {
-        let expression = or(
-            atomic("a"),
-            or(
-                atomic("b"),
-                or(
-                    atomic("c"),
-                    atomic("d"),
-                ),
-            ),
-        );
+        let expression = or(atomic("a"), or(atomic("b"), or(atomic("c"), atomic("d"))));
         assert_eq!(expression.to_string(), "a ⋁ b ⋁ c ⋁ d");
     }
 
     #[test]
     fn test_expression_nested_parenthesized_or() {
-        let expression = or(
-            atomic("a"),
-            and(
-                atomic("b"),
-                or(
-                    atomic("b"),
-                    atomic("c"),
-                ),
-            ),
-        );
+        let expression = or(atomic("a"), and(atomic("b"), or(atomic("b"), atomic("c"))));
         assert_eq!(expression.to_string(), "a ⋁ b ⋀ (b ⋁ c)");
     }
 
     #[test]
     fn test_expression_c_and_a_or_b_display() {
-        let expression = and(
-            or(
-                atomic("a"),
-                atomic("b"),
-            ),
-            atomic("c"),
-        );
+        let expression = and(or(atomic("a"), atomic("b")), atomic("c"));
         assert_eq!(expression.to_string(), "(a ⋁ b) ⋀ c");
     }
 
     #[test]
     fn test_expression_a_implies_b_display() {
-        let expression = implies(
-            atomic("a"),
-            atomic("b"),
-        );
+        let expression = implies(atomic("a"), atomic("b"));
         assert_eq!(expression.to_string(), "a ➔ b");
     }
 
     #[test]
     fn test_expression_not_a_and_b_display() {
-        let expression = not(and(
-            atomic("a"),
-            atomic("b"),
-        ));
+        let expression = not(and(atomic("a"), atomic("b")));
         assert_eq!(expression.to_string(), "¬(a ⋀ b)");
     }
 
@@ -323,7 +346,13 @@ mod tests {
     #[test]
     fn test_from_str_into_expression_very_complex_parentheses() {
         let expression: Expression = "(a & b) | c => (d & e)".try_into().unwrap();
-        assert_eq!(expression, implies(or(and(atomic("a"), atomic("b")), atomic("c")), and(atomic("d"), atomic("e"))));
+        assert_eq!(
+            expression,
+            implies(
+                or(and(atomic("a"), atomic("b")), atomic("c")),
+                and(atomic("d"), atomic("e"))
+            )
+        );
     }
 
     #[test]
