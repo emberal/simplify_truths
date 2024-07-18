@@ -24,8 +24,8 @@ pub enum Law {
 // TODO refactor
 #[macro_export]
 macro_rules! absorption_law_opposites {
-    ($left:expr, $right:expr, $operations:expr, $this_op:pat, $op:pat, $func:expr, $ignore_case:expr) => {{
-        let before = $func($left.clone(), $right.clone());
+    ($left:expr, $right:expr, $operations:expr, $this_op:expr, $op:pat, $ignore_case:expr) => {{
+        let before = binary($left.clone(), $this_op, $right.clone());
         match ($left.as_ref(), $right.as_ref()) {
             (
                 _,
@@ -39,12 +39,13 @@ macro_rules! absorption_law_opposites {
                     $left.as_ref(),
                     right_left,
                     right_right,
-                    $func,
+                    $this_op,
                     $ignore_case,
                     $operations,
                 )
-                .unwrap_or($func(
+                .unwrap_or(binary(
                     $left.absorption_law($operations, $ignore_case),
+                    $this_op,
                     $right.absorption_law($operations, $ignore_case),
                 ));
                 if let Some(operation) = Operation::new(&before, &result, Law::AbsorptionLaw) {
@@ -56,11 +57,11 @@ macro_rules! absorption_law_opposites {
                 _,
                 Expression::Binary {
                     left: right_left,
-                    operator: $this_op,
+                    operator,
                     ..
                 },
-            ) if $left.opposite_eq(right_left, $ignore_case) => {
-                let result = $func($left.clone(), right_left.clone());
+            ) if *operator == $this_op && $left.opposite_eq(right_left, $ignore_case) => {
+                let result = binary($left.clone(), $this_op, right_left.clone());
                 if let Some(operation) = Operation::new(&before, &result, Law::AbsorptionLaw) {
                     $operations.push(operation);
                 }
@@ -70,11 +71,11 @@ macro_rules! absorption_law_opposites {
                 _,
                 Expression::Binary {
                     right: right_right,
-                    operator: $this_op,
+                    operator,
                     ..
                 },
-            ) if $left.opposite_eq(right_right, $ignore_case) => {
-                let result = $func($left.clone(), right_right.clone());
+            ) if *operator == $this_op && $left.opposite_eq(right_right, $ignore_case) => {
+                let result = binary($left.clone(), $this_op, right_right.clone());
                 if let Some(operation) = Operation::new(&before, &result, Law::AbsorptionLaw) {
                     $operations.push(operation);
                 }
@@ -92,12 +93,13 @@ macro_rules! absorption_law_opposites {
                     $right.as_ref(),
                     left_left,
                     left_right,
-                    $func,
+                    $this_op,
                     $ignore_case,
                     $operations,
                 )
-                .unwrap_or($func(
+                .unwrap_or(binary(
                     $left.absorption_law($operations, $ignore_case),
+                    $this_op,
                     $right.absorption_law($operations, $ignore_case),
                 ));
                 if let Some(operation) = Operation::new(&before, &result, Law::AbsorptionLaw) {
@@ -108,12 +110,12 @@ macro_rules! absorption_law_opposites {
             (
                 Expression::Binary {
                     left: left_left,
-                    operator: $this_op,
+                    operator,
                     ..
                 },
                 _,
-            ) if $right.opposite_eq(left_left, $ignore_case) => {
-                let result = $func($right.clone(), left_left.clone());
+            ) if *operator == $this_op && $right.opposite_eq(left_left, $ignore_case) => {
+                let result = binary($right.clone(), $this_op, left_left.clone());
                 if let Some(operation) = Operation::new(&before, &result, Law::AbsorptionLaw) {
                     $operations.push(operation);
                 }
@@ -122,19 +124,20 @@ macro_rules! absorption_law_opposites {
             (
                 Expression::Binary {
                     right: left_right,
-                    operator: $this_op,
+                    operator,
                     ..
                 },
                 _,
-            ) if $right.opposite_eq(left_right, $ignore_case) => {
-                let result = $func($right.clone(), left_right.clone());
+            ) if *operator == $this_op && $right.opposite_eq(left_right, $ignore_case) => {
+                let result = binary($right.clone(), $this_op, left_right.clone());
                 if let Some(operation) = Operation::new(&before, &result, Law::AbsorptionLaw) {
                     $operations.push(operation);
                 }
                 result
             }
-            (left, right) => $func(
+            (left, right) => binary(
                 left.absorption_law($operations, $ignore_case),
+                $this_op,
                 right.absorption_law($operations, $ignore_case),
             ),
         }
@@ -445,7 +448,6 @@ impl Expression {
                     operations,
                     BinaryOperator::And,
                     BinaryOperator::Or,
-                    and,
                     ignore_case
                 )
             }
@@ -460,7 +462,6 @@ impl Expression {
                     operations,
                     BinaryOperator::Or,
                     BinaryOperator::And,
-                    or,
                     ignore_case
                 )
             }
@@ -533,11 +534,11 @@ impl Expression {
     }
 }
 
-fn evaluate_equals_or_opposites<F: Fn(Expression, Expression) -> Expression>(
+fn evaluate_equals_or_opposites(
     this: &Expression,
     left: &Expression,
     right: &Expression,
-    op_func: F, // TODO pass in BinaryOperator instead of function
+    operator: BinaryOperator,
     ignore_case: bool,
     operations: &mut Vec<Operation>,
 ) -> Option<Expression> {
@@ -545,13 +546,15 @@ fn evaluate_equals_or_opposites<F: Fn(Expression, Expression) -> Expression>(
         return Some(this.absorption_law(operations, ignore_case));
     } else if left.is_atomic() && right.is_atomic() {
         if this.opposite_eq(left, ignore_case) {
-            return Some(op_func(
+            return Some(binary(
                 right.absorption_law(operations, ignore_case),
+                operator,
                 this.absorption_law(operations, ignore_case),
             ));
         } else if this.opposite_eq(right, ignore_case) {
-            return Some(op_func(
+            return Some(binary(
                 left.absorption_law(operations, ignore_case),
+                operator,
                 this.absorption_law(operations, ignore_case),
             ));
         }
