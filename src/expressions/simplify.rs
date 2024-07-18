@@ -321,104 +321,35 @@ impl Expression {
         }
     }
 
-    // TODO merge some branches?
     fn absorption_law(&self, operations: &mut Vec<Operation>, ignore_case: bool) -> Self {
         match self {
             Expression::Binary {
                 left,
-                operator: BinaryOperator::And | BinaryOperator::Or,
+                operator: operator @ (BinaryOperator::And | BinaryOperator::Or),
                 right,
-            } if Expression::eq(left, right, ignore_case) => {
-                if let Some(operation) = Operation::new(self, left, Law::AbsorptionLaw) {
+            } => {
+                #[rustfmt::skip] // TODO refactor
+                let after = if Expression::eq(left, right, ignore_case)
+                    || (operator.is_and() && (left.is_and() && right.is_in(left) || right.is_or()  && left.is_in(right)))
+                    || (operator.is_or()  && (left.is_or()  && right.is_in(left) || right.is_and() && left.is_in(right)))
+                {
+                    left
+                } else if
+                       (operator.is_and() && (left.is_or()  && right.is_in(left) || right.is_and() && left.is_in(right)))
+                    || (operator.is_or()  && (left.is_and() && right.is_in(left) || right.is_or()  && left.is_in(right)))
+                {
+                    right
+                } else {
+                    return binary(
+                        left.absorption_law(operations, ignore_case),
+                        *operator,
+                        right.absorption_law(operations, ignore_case),
+                    );
+                };
+                if let Some(operation) = Operation::new(self, after, Law::AbsorptionLaw) {
                     operations.push(operation);
                 }
-                left.absorption_law(operations, ignore_case)
-            }
-            Expression::Binary {
-                left,
-                operator,
-                right,
-            } if operator.is_and()
-                && (right.is_in(left) && left.is_and() || left.is_in(right) && right.is_or()) =>
-            {
-                if let Some(operation) = Operation::new(self, left, Law::AbsorptionLaw) {
-                    operations.push(operation);
-                }
-                left.absorption_law(operations, ignore_case)
-            }
-            Expression::Binary {
-                left,
-                operator,
-                right,
-            } if operator.is_and()
-                && (right.is_in(left) && left.is_or() || left.is_in(right) && right.is_and()) =>
-            {
-                if let Some(operation) = Operation::new(self, right, Law::AbsorptionLaw) {
-                    operations.push(operation);
-                }
-                right.absorption_law(operations, ignore_case)
-            }
-            Expression::Binary {
-                left,
-                operator,
-                right,
-            } if operator.is_or()
-                && (right.is_in(left) && left.is_and() || left.is_in(right) && right.is_or()) =>
-            {
-                if let Some(operation) = Operation::new(self, right, Law::AbsorptionLaw) {
-                    operations.push(operation);
-                }
-                right.absorption_law(operations, ignore_case)
-            }
-            Expression::Binary {
-                left,
-                operator: BinaryOperator::And,
-                right,
-            } if left.is_and() && right.is_in(left) => {
-                if let Some(operation) = Operation::new(self, left, Law::AbsorptionLaw) {
-                    operations.push(operation);
-                }
-                left.absorption_law(operations, ignore_case)
-            }
-            Expression::Binary {
-                left,
-                operator: BinaryOperator::And,
-                right,
-            } if right.is_and() && left.is_in(right) => {
-                if let Some(operation) = Operation::new(self, right, Law::AbsorptionLaw) {
-                    operations.push(operation);
-                }
-                right.absorption_law(operations, ignore_case)
-            }
-            Expression::Binary {
-                left,
-                operator: BinaryOperator::Or,
-                right,
-            } if left.is_or() && right.is_in(left) => {
-                if let Some(operation) = Operation::new(self, left, Law::AbsorptionLaw) {
-                    operations.push(operation);
-                }
-                left.absorption_law(operations, ignore_case)
-            }
-            Expression::Binary {
-                left,
-                operator: BinaryOperator::Or,
-                right,
-            } if right.is_or() && left.is_in(right) => {
-                if let Some(operation) = Operation::new(self, right, Law::AbsorptionLaw) {
-                    operations.push(operation);
-                }
-                right.absorption_law(operations, ignore_case)
-            }
-            Expression::Binary {
-                left,
-                operator: BinaryOperator::Or,
-                right,
-            } if left.is_in(right) && right.is_and() => {
-                if let Some(operation) = Operation::new(self, left, Law::AbsorptionLaw) {
-                    operations.push(operation);
-                }
-                left.absorption_law(operations, ignore_case)
+                after.absorption_law(operations, ignore_case)
             }
             Expression::Binary {
                 left,
