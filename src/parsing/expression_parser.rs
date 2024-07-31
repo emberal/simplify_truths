@@ -3,10 +3,10 @@ use lib::traits::IntoResult;
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while, take_while1};
 use nom::character::complete::char;
-use nom::combinator::{opt, peek};
+use nom::combinator::{map, opt, peek};
 use nom::error::Error;
-use nom::IResult;
 use nom::sequence::{pair, preceded};
+use nom::IResult;
 
 use crate::expressions::expression::Expression;
 use crate::expressions::helpers::atomic;
@@ -41,15 +41,15 @@ fn expression<'a>(previous: Expression) -> impl Fn(&'a str) -> IResult<&'a str, 
     }
 }
 
-fn operator_combinators(expression: Expression) -> impl Fn(&str) -> IResult<&str, Expression> {
-    move |input: &str| {
-        alt((
-            implication_expression(expression.clone()),
-            or_expression(expression.clone()),
-            and_expression(expression.clone()),
-            not_expression,
-        ))(input)
-    }
+fn operator_combinators<'a>(
+    expression: Expression,
+) -> impl FnMut(&'a str) -> IResult<&'a str, Expression> {
+    alt((
+        implication_expression(expression.clone()),
+        or_expression(expression.clone()),
+        and_expression(expression.clone()),
+        not_expression,
+    ))
 }
 
 fn parenthesized_expression(input: &str) -> IResult<&str, Expression> {
@@ -64,11 +64,10 @@ fn parenthesized_expression(input: &str) -> IResult<&str, Expression> {
     })(input)
 }
 
-fn and_expression<'a>(previous: Expression) -> impl Fn(&'a str) -> IResult<&'a str, Expression> {
-    move |input: &'a str| {
-        preceded(trim(char('&')), left_hand_side)(input)
-            .map(|(remaining, right)| (remaining, previous.clone().and(right)))
-    }
+fn and_expression<'a>(previous: Expression) -> impl FnMut(&'a str) -> IResult<&'a str, Expression> {
+    map(preceded(trim(char('&')), left_hand_side), move |right| {
+        previous.clone().and(right)
+    })
 }
 
 fn complete_and(input: &str) -> IResult<&str, Expression> {
@@ -76,11 +75,11 @@ fn complete_and(input: &str) -> IResult<&str, Expression> {
     and_expression(atomic.clone())(remaining)
 }
 
-fn or_expression<'a>(previous: Expression) -> impl Fn(&'a str) -> IResult<&'a str, Expression> {
-    move |input: &'a str| {
-        preceded(trim(char('|')), alt((complete_and, left_hand_side)))(input)
-            .map(|(remaining, right)| (remaining, previous.clone().or(right)))
-    }
+fn or_expression<'a>(previous: Expression) -> impl FnMut(&'a str) -> IResult<&'a str, Expression> {
+    map(
+        preceded(trim(char('|')), alt((complete_and, left_hand_side))),
+        move |right| previous.clone().or(right),
+    )
 }
 
 fn complete_or(input: &str) -> IResult<&str, Expression> {
@@ -90,14 +89,14 @@ fn complete_or(input: &str) -> IResult<&str, Expression> {
 
 fn implication_expression<'a>(
     previous: Expression,
-) -> impl Fn(&'a str) -> IResult<&'a str, Expression> {
-    move |input: &'a str| {
+) -> impl FnMut(&'a str) -> IResult<&'a str, Expression> {
+    map(
         preceded(
             trim(tag("=>")),
             alt((complete_and, complete_or, left_hand_side)),
-        )(input)
-        .map(|(remaining, right)| (remaining, previous.clone().implies(right)))
-    }
+        ),
+        move |right| previous.clone().implies(right),
+    )
 }
 
 fn not_expression(input: &str) -> IResult<&str, Expression> {
@@ -105,14 +104,16 @@ fn not_expression(input: &str) -> IResult<&str, Expression> {
 }
 
 fn value(input: &str) -> IResult<&str, Expression> {
-    pair(
-        take_while1(|c: char| c.is_ascii_alphabetic()),
-        take_while(|c: char| c.is_ascii_alphanumeric() || c == '_'),
+    map(
+        pair(
+            take_while1(|c: char| c.is_ascii_alphabetic()),
+            take_while(|c: char| c.is_ascii_alphanumeric() || c == '_'),
+        ),
+        |(first, rest)| {
+            let value = format!("{first}{rest}");
+            atomic(value)
+        },
     )(input)
-    .map(|(remaining, (first, rest))| {
-        let value = format!("{first}{rest}");
-        (remaining, atomic(value))
-    })
 }
 
 #[cfg(test)]
