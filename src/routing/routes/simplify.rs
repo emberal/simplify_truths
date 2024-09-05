@@ -9,10 +9,13 @@ use crate::routing::error::{Error, ErrorKind};
 use crate::routing::options::{SimplifyAndTableOptions, SimplifyOptions};
 use crate::routing::response::SimplifyResponse;
 
-router!("/simplify", routes!(
-    get "/:exp" => simplify,
-    get "/table/:exp" => simplify_and_table
-));
+router!(
+    "/simplify",
+    routes!(
+        get "/:exp" => simplify,
+        get "/table/:exp" => simplify_and_table
+    )
+);
 
 async fn simplify(Path(path): Path<String>, Query(query): Query<SimplifyOptions>) -> Response {
     match Expression::try_from(path.as_str()) {
@@ -28,15 +31,21 @@ async fn simplify(Path(path): Path<String>, Query(query): Query<SimplifyOptions>
                 operations,
                 expression,
                 truth_table: None,
-            }.into_response()
+            }
+            .into_response()
         }
-        Err(error) => {
-            (StatusCode::BAD_REQUEST, Error::new(error.to_string(), ErrorKind::InvalidExpression)).into_response()
-        }
+        Err(error) => (
+            StatusCode::BAD_REQUEST,
+            Error::new(error.to_string(), ErrorKind::InvalidExpression),
+        )
+            .into_response(),
     }
 }
 
-async fn simplify_and_table(Path(path): Path<String>, Query(query): Query<SimplifyAndTableOptions>) -> Response {
+async fn simplify_and_table(
+    Path(path): Path<String>,
+    Query(query): Query<SimplifyAndTableOptions>,
+) -> Response {
     match Expression::try_from(path.as_str()) {
         Ok(mut expression) => {
             let before = expression.to_string();
@@ -51,10 +60,13 @@ async fn simplify_and_table(Path(path): Path<String>, Query(query): Query<Simpli
                 operations,
                 expression,
                 truth_table: Some(truth_table),
-            }.into_response()
+            }
+            .into_response()
         }
-        Err(error) => {
-            (StatusCode::BAD_REQUEST, Error::new(error.to_string(), ErrorKind::InvalidExpression)).into_response()
-        }
+        Err(error) => (
+            StatusCode::BAD_REQUEST,
+            Error::new(error.to_string(), ErrorKind::InvalidExpression),
+        )
+            .into_response(),
     }
 }

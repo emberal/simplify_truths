@@ -12,7 +12,7 @@ RUN npm install
 RUN USER=root npm install -g @typespec/compiler && npm install -g @redocly/cli
 RUN npm run tsp-compile && npm run redoc-build
 
-FROM rust:1.79 as build
+FROM rust:1.80.1 as build
 
 COPY --from=static ./src/resources/static ./static
 

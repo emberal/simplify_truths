@@ -1,6 +1,6 @@
-use std::rc::Rc;
 use crate::expressions::expression::Expression;
 use crate::expressions::operator::BinaryOperator;
+use std::rc::Rc;
 
 impl Expression {
     #[inline]
@@ -65,7 +65,11 @@ where
     L: Into<Rc<Expression>>,
     R: Into<Rc<Expression>>,
 {
-    Expression::Binary { left: left.into(), operator, right: right.into() }
+    Expression::Binary {
+        left: left.into(),
+        operator,
+        right: right.into(),
+    }
 }
 
 #[inline]

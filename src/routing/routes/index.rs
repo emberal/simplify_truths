@@ -1,7 +1,7 @@
 use axum::extract::Path;
 use axum::http::StatusCode;
-use axum::Json;
 use axum::response::{IntoResponse, Response};
+use axum::Json;
 use lib::router;
 use serde::Serialize;
 
@@ -40,7 +40,7 @@ async fn open_api() -> impl IntoResponse {
 async fn is_valid(Path(path): Path<String>) -> Response {
     match Expression::try_from(path.as_str()) {
         Ok(_) => IsValidResponse::valid().into_response(),
-        Err(error) => Error::new(error.to_string(), ErrorKind::InvalidExpression).into_response()
+        Err(error) => Error::new(error.to_string(), ErrorKind::InvalidExpression).into_response(),
     }
 }
 

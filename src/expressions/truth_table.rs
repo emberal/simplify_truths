@@ -36,16 +36,27 @@ pub enum Sort {
 }
 
 impl TruthTable {
-    pub fn new(expression: &Expression, options: TruthTableOptions) -> Self {
+    pub fn new(
+        expression: &Expression,
+        TruthTableOptions {
+            hide,
+            hide_intermediate_steps,
+            sort,
+        }: TruthTableOptions,
+    ) -> Self {
         let mut header = Self::extract_header(expression);
-        let mut truth_matrix = Self::generate_truth_matrix(expression, &header, options.hide, options.hide_intermediate_steps);
-        if !matches!(options.sort, Sort::Default) {
-            Self::sort_matrix(&mut truth_matrix, options.sort);
+        let mut truth_matrix =
+            Self::generate_truth_matrix(expression, &header, hide, hide_intermediate_steps);
+        if !matches!(sort, Sort::Default) {
+            Self::sort_matrix(&mut truth_matrix, sort);
         }
-        if options.hide_intermediate_steps {
+        if hide_intermediate_steps {
             header = Self::remove_non_atomic_from_header(&header);
         }
-        Self { header, truth_matrix }
+        Self {
+            header,
+            truth_matrix,
+        }
     }
 
     fn sort_matrix(truth_matrix: &mut TruthMatrix, sort: Sort) {
@@ -57,7 +68,8 @@ impl TruthTable {
     }
 
     fn remove_non_atomic_from_header(header: &[String]) -> Vec<String> {
-        header.iter()
+        header
+            .iter()
             .enumerate()
             .filter_map(|(index, s)| {
                 if !Self::contains_operator(s) || index == header.len() - 1 {
@@ -105,38 +117,62 @@ impl TruthTable {
         }
     }
 
-    fn generate_truth_matrix(expression: &Expression, header: &[String], hide: Hide, hide_intermediate: bool) -> TruthMatrix {
-        let mut atomics = expression.get_atomic_values()
-            .into_iter().collect::<Vec<String>>();
+    fn generate_truth_matrix(
+        expression: &Expression,
+        header: &[String],
+        hide: Hide,
+        hide_intermediate: bool,
+    ) -> TruthMatrix {
+        let mut atomics = expression
+            .get_atomic_values()
+            .into_iter()
+            .collect::<Vec<String>>();
         if atomics.is_empty() {
             return vec![];
         }
         atomics.sort();
-        Self::truth_combinations(atomics.len() as u32).iter()
+        Self::truth_combinations(atomics.len() as u32)
+            .iter()
             .filter_map(|combo| {
-                let expression = Self::resolve_expression(expression, &atomics.iter()
-                    .enumerate()
-                    .map(|(index, value)| (value.clone(), combo[index]))
-                    .collect(), header, hide_intermediate);
+                let expression = Self::resolve_expression(
+                    expression,
+                    &atomics
+                        .iter()
+                        .enumerate()
+                        .map(|(index, value)| (value.clone(), combo[index]))
+                        .collect(),
+                    header,
+                    hide_intermediate,
+                );
                 match (hide, expression.last()) {
                     (Hide::True, Some(false)) => Some(expression),
                     (Hide::False, Some(true)) => Some(expression),
                     (Hide::None, _) => Some(expression),
                     _ => None,
                 }
-            }).collect()
+            })
+            .collect()
     }
 
     fn truth_combinations(count: u32) -> TruthMatrix {
         let row_len = 2usize.pow(count);
         let rows = 0..row_len;
-        rows.map(|index| (0..count).rev()
-            // Just trust me bro
-            .map(|shift| (index >> shift) & 1 == 0).collect()
-        ).collect()
+        rows.map(|index| {
+            (0..count)
+                .rev()
+                // Just trust me bro
+                .map(|shift| (index >> shift) & 1 == 0)
+                .collect()
+        })
+        .collect()
     }
 
-    fn resolve_expression(expression: &Expression, booleans: &HashMap<String, bool>, header: &[String], hide_intermediate: bool) -> Vec<bool> {
+    fn resolve_expression(
+        expression: &Expression,
+        booleans: &HashMap<String, bool>,
+        header: &[String],
+        hide_intermediate: bool,
+    ) -> Vec<bool> {
         let Some(last_expression) = header.last() else {
             return vec![];
         };
@@ -145,17 +181,23 @@ impl TruthTable {
         if hide_intermediate {
             expression_map = Self::remove_intermediate_steps(expression_map, last_expression);
         }
-        let string_map = expression_map.into_iter()
+        let string_map = expression_map
+            .into_iter()
             .map(|(key, value)| (key.to_string(), value))
             .collect::<HashMap<String, bool>>();
 
-        header.iter()
+        header
+            .iter()
             .filter_map(|s_expr| string_map.get(s_expr).copied())
             .collect()
     }
 
-    fn remove_intermediate_steps<'a>(expression_map: HashMap<&'a Expression, bool>, top_level_expression: &'a str) -> HashMap<&'a Expression, bool> {
-        expression_map.into_iter()
+    fn remove_intermediate_steps<'a>(
+        expression_map: HashMap<&'a Expression, bool>,
+        top_level_expression: &'a str,
+    ) -> HashMap<&'a Expression, bool> {
+        expression_map
+            .into_iter()
             .filter_map(|(key, value)| {
                 if key.is_atomic() || key.to_string() == top_level_expression {
                     Some((key, value))
@@ -166,7 +208,10 @@ impl TruthTable {
             .collect()
     }
 
-    fn _resolve_expression<'a>(expression: &'a Expression, booleans: &HashMap<String, bool>) -> HashMap<&'a Expression, bool> {
+    fn _resolve_expression<'a>(
+        expression: &'a Expression,
+        booleans: &HashMap<String, bool>,
+    ) -> HashMap<&'a Expression, bool> {
         match expression {
             Expression::Not(expr) => {
                 let mut map = Self::_resolve_expression(expr, booleans);
@@ -175,12 +220,18 @@ impl TruthTable {
                 }
                 map
             }
-            Expression::Binary { left, right, operator } => {
+            Expression::Binary {
+                left,
+                right,
+                operator,
+            } => {
                 let left_map = Self::_resolve_expression(left, booleans);
                 let right_map = Self::_resolve_expression(right, booleans);
                 let mut map = left_map;
                 map.extend(right_map);
-                if let (Some(left_value), Some(right_value)) = (map.get(left.as_ref()), map.get(right.as_ref())) {
+                if let (Some(left_value), Some(right_value)) =
+                    (map.get(left.as_ref()), map.get(right.as_ref()))
+                {
                     map.insert(expression, operator.eval(*left_value, *right_value));
                 }
                 map
@@ -209,18 +260,24 @@ mod tests {
         let expression = and(atomic("A"), atomic("B"));
         let truth_table = TruthTable::new(&expression, Default::default());
         assert_eq!(truth_table.header, vec!["A", "B", "A ⋀ B"]);
-        assert_ne!(truth_table.truth_matrix, matrix![
-            true, true, true;
-            false, true, false;
-            true, false, false;
-            false, false, false
-        ]);
-        assert_eq!(truth_table.truth_matrix, matrix![
-            true, true, true;
-            true, false, false;
-            false, true, false;
-            false, false, false
-        ]);
+        assert_ne!(
+            truth_table.truth_matrix,
+            matrix![
+                true, true, true;
+                false, true, false;
+                true, false, false;
+                false, false, false
+            ]
+        );
+        assert_eq!(
+            truth_table.truth_matrix,
+            matrix![
+                true, true, true;
+                true, false, false;
+                false, true, false;
+                false, false, false
+            ]
+        );
     }
 
     #[test]
@@ -229,26 +286,56 @@ mod tests {
         let truth_table = TruthTable::new(&expression, Default::default());
         let atomics = 3;
 
-        assert_eq!(truth_table.header, vec!["A", "C", "A ⋁ C", "B", "B ⋁ C", "(A ⋁ C) ⋀ (B ⋁ C)"]);
+        assert_eq!(
+            truth_table.header,
+            vec!["A", "C", "A ⋁ C", "B", "B ⋁ C", "(A ⋁ C) ⋀ (B ⋁ C)"]
+        );
         assert_eq!(truth_table.truth_matrix.len(), 2usize.pow(atomics as u32));
         assert_eq!(truth_table.truth_matrix[0].len(), 6);
-        assert_eq!(truth_table.truth_matrix[0], vec![true, true, true, true, true, true]);
-        assert_eq!(truth_table.truth_matrix[1], vec![true, false, true, true, true, true]);
-        assert_eq!(truth_table.truth_matrix[2], vec![true, true, true, false, true, true]);
-        assert_eq!(truth_table.truth_matrix[3], vec![true, false, true, false, false, false]);
-        assert_eq!(truth_table.truth_matrix[4], vec![false, true, true, true, true, true]);
-        assert_eq!(truth_table.truth_matrix[5], vec![false, false, false, true, true, false]);
-        assert_eq!(truth_table.truth_matrix[6], vec![false, true, true, false, true, true]);
-        assert_eq!(truth_table.truth_matrix[7], vec![false, false, false, false, false, false]);
+        assert_eq!(
+            truth_table.truth_matrix[0],
+            vec![true, true, true, true, true, true]
+        );
+        assert_eq!(
+            truth_table.truth_matrix[1],
+            vec![true, false, true, true, true, true]
+        );
+        assert_eq!(
+            truth_table.truth_matrix[2],
+            vec![true, true, true, false, true, true]
+        );
+        assert_eq!(
+            truth_table.truth_matrix[3],
+            vec![true, false, true, false, false, false]
+        );
+        assert_eq!(
+            truth_table.truth_matrix[4],
+            vec![false, true, true, true, true, true]
+        );
+        assert_eq!(
+            truth_table.truth_matrix[5],
+            vec![false, false, false, true, true, false]
+        );
+        assert_eq!(
+            truth_table.truth_matrix[6],
+            vec![false, true, true, false, true, true]
+        );
+        assert_eq!(
+            truth_table.truth_matrix[7],
+            vec![false, false, false, false, false, false]
+        );
     }
 
     #[test]
     fn test_new_truth_table_and_hide_intermediate_steps() {
         let expression = and(atomic("A"), or(atomic("B"), atomic("C")));
-        let truth_table = TruthTable::new(&expression, TruthTableOptions {
-            hide_intermediate_steps: true,
-            ..Default::default()
-        });
+        let truth_table = TruthTable::new(
+            &expression,
+            TruthTableOptions {
+                hide_intermediate_steps: true,
+                ..Default::default()
+            },
+        );
         assert_eq!(truth_table.header, vec!["A", "B", "C", "A ⋀ (B ⋁ C)"]);
         for (index, row) in truth_table.truth_matrix.iter().enumerate() {
             assert_eq!(row.len(), 4, "Row at {index}: {:?}", row);
@@ -264,12 +351,15 @@ mod tests {
             false, false, false
         ];
         TruthTable::sort_matrix(&mut matrix, Sort::TrueFirst);
-        assert_eq!(matrix, matrix![
-            true, true, true;
-            false, true, true;
-            true, false, false;
-            false, false, false
-        ]);
+        assert_eq!(
+            matrix,
+            matrix![
+                true, true, true;
+                false, true, true;
+                true, false, false;
+                false, false, false
+            ]
+        );
     }
 
     #[test]
@@ -281,12 +371,15 @@ mod tests {
             true, false, false
         ];
         TruthTable::sort_matrix(&mut matrix, Sort::TrueFirst);
-        assert_eq!(matrix, matrix![
-            false, true, false;
-            false, true, false;
-            true, false, false;
-            true, false, false
-        ]);
+        assert_eq!(
+            matrix,
+            matrix![
+                false, true, false;
+                false, true, false;
+                true, false, false;
+                true, false, false
+            ]
+        );
     }
 
     #[test]
@@ -298,12 +391,15 @@ mod tests {
             false, false, false
         ];
         TruthTable::sort_matrix(&mut matrix, Sort::Default);
-        assert_eq!(matrix, matrix![
-            true, true, true;
-            true, false, false;
-            false, true, true;
-            false, false, false
-        ]);
+        assert_eq!(
+            matrix,
+            matrix![
+                true, true, true;
+                true, false, false;
+                false, true, true;
+                false, false, false
+            ]
+        );
     }
 
     #[test]
@@ -315,12 +411,15 @@ mod tests {
             false, false, false
         ];
         TruthTable::sort_matrix(&mut matrix, Sort::FalseFirst);
-        assert_eq!(matrix, matrix![
-            true, false, false;
-            false, false, false;
-            true, true, true;
-            false, true, true
-        ]);
+        assert_eq!(
+            matrix,
+            matrix![
+                true, false, false;
+                false, false, false;
+                true, true, true;
+                false, true, true
+            ]
+        );
     }
 
     #[test]
@@ -333,20 +432,20 @@ mod tests {
         let matrix = TruthTable::generate_truth_matrix(
             &and(atomic("A"), atomic("B")),
             &["A".into(), "B".into(), "A ⋀ B".into()],
-            Hide::True, false,
+            Hide::True,
+            false,
         );
         assert_eq!(expected, matrix);
     }
 
     #[test]
     fn test_hide_false_values() {
-        let expected = matrix![
-            true, true, true
-        ];
+        let expected = matrix![true, true, true];
         let matrix = TruthTable::generate_truth_matrix(
             &and(atomic("A"), atomic("B")),
             &["A".into(), "B".into(), "A ⋀ B".into()],
-            Hide::False, false,
+            Hide::False,
+            false,
         );
         assert_eq!(expected, matrix);
     }
@@ -362,7 +461,8 @@ mod tests {
         let matrix = TruthTable::generate_truth_matrix(
             &and(atomic("A"), atomic("B")),
             &["A".into(), "B".into(), "A ⋀ B".into()],
-            Hide::None, false,
+            Hide::None,
+            false,
         );
         assert_eq!(expected, matrix);
     }
@@ -370,34 +470,46 @@ mod tests {
     #[test]
     fn test_truth_combinations_2() {
         let combinations = TruthTable::truth_combinations(2);
-        assert_eq!(combinations, matrix![
-            true, true;
-            true, false;
-            false, true;
-            false, false
-        ]);
+        assert_eq!(
+            combinations,
+            matrix![
+                true, true;
+                true, false;
+                false, true;
+                false, false
+            ]
+        );
     }
 
     #[test]
     fn test_truth_combinations_3() {
         let combinations = TruthTable::truth_combinations(3);
-        assert_eq!(combinations, matrix![
-            true, true, true;
-            true, true, false;
-            true, false, true;
-            true, false, false;
-            false, true, true;
-            false, true, false;
-            false, false, true;
-            false, false, false
-        ]);
+        assert_eq!(
+            combinations,
+            matrix![
+                true, true, true;
+                true, true, false;
+                true, false, true;
+                true, false, false;
+                false, true, true;
+                false, true, false;
+                false, false, true;
+                false, false, false
+            ]
+        );
     }
 
     #[test]
     fn test_resolve_expression_hide_intermediate_steps() {
         let expression = and(atomic("A"), or(atomic("B"), atomic("C")));
         let booleans = map!["A".into() => true, "B".into() => false, "C".into() => true];
-        let header = vec!["A".into(), "B".into(), "C".into(), "B ⋁ C".into(), "A ⋀ (B ⋁ C)".into()];
+        let header = vec![
+            "A".into(),
+            "B".into(),
+            "C".into(),
+            "B ⋁ C".into(),
+            "A ⋀ (B ⋁ C)".into(),
+        ];
         let values = TruthTable::resolve_expression(&expression, &booleans, &header, true);
         assert_eq!(values.len(), 4);
         assert_eq!(values, vec![true, false, true, true]);
@@ -443,7 +555,12 @@ mod tests {
     fn test_resolve_expression_even_more_duplicates() {
         let expression = and(atomic("A"), and(atomic("A"), and(atomic("A"), atomic("A"))));
         let booleans = HashMap::from([("A".into(), true)]);
-        let header = vec!["A".into(), "A ⋀ A".into(), "A ⋀ A ⋀ A".into(), "A ⋀ A ⋀ A ⋀ A".into()];
+        let header = vec![
+            "A".into(),
+            "A ⋀ A".into(),
+            "A ⋀ A ⋀ A".into(),
+            "A ⋀ A ⋀ A ⋀ A".into(),
+        ];
         let values = TruthTable::resolve_expression(&expression, &booleans, &header, false);
         assert_eq!(values, vec![true, true, true, true]);
     }
@@ -453,14 +570,19 @@ mod tests {
         let expression = and(atomic("A"), and(atomic("A"), and(atomic("A"), atomic("A"))));
         let booleans = HashMap::from([("A".into(), true)]);
         let values = TruthTable::_resolve_expression(&expression, &booleans);
-        assert_eq!(values, HashMap::from([
-            (&atomic("A"), true),
-            (&and(atomic("A"), atomic("A")), true),
-            (&and(atomic("A"), and(atomic("A"), atomic("A"))), true),
-            (&and(atomic("A"), and(atomic("A"), and(atomic("A"), atomic("A")))), true),
-        ]));
+        assert_eq!(
+            values,
+            HashMap::from([
+                (&atomic("A"), true),
+                (&and(atomic("A"), atomic("A")), true),
+                (&and(atomic("A"), and(atomic("A"), atomic("A"))), true),
+                (
+                    &and(atomic("A"), and(atomic("A"), and(atomic("A"), atomic("A")))),
+                    true
+                ),
+            ])
+        );
     }
-
 
     #[test]
     fn test_atomic_expression() {
@@ -501,7 +623,10 @@ mod tests {
     fn test_complex_expression() {
         let expression = implies(and(atomic("A"), atomic("B")), or(atomic("C"), atomic("D")));
         let header = TruthTable::extract_header(&expression);
-        assert_eq!(header, vec!["A", "B", "A ⋀ B", "C", "D", "C ⋁ D", "A ⋀ B ➔ C ⋁ D"]);
+        assert_eq!(
+            header,
+            vec!["A", "B", "A ⋀ B", "C", "D", "C ⋁ D", "A ⋀ B ➔ C ⋁ D"]
+        );
     }
 
     #[test]
@@ -513,8 +638,14 @@ mod tests {
 
     #[test]
     fn test_somewhat_equal() {
-        let expression = and(atomic("A"), and(or(not(atomic("A")), atomic("B")), atomic("A")));
+        let expression = and(
+            atomic("A"),
+            and(or(not(atomic("A")), atomic("B")), atomic("A")),
+        );
         let header = TruthTable::extract_header(&expression);
-        assert_eq!(header, vec!["A", "¬A", "B", "¬A ⋁ B", "(¬A ⋁ B) ⋀ A", "A ⋀ (¬A ⋁ B) ⋀ A"]);
+        assert_eq!(
+            header,
+            vec!["A", "¬A", "B", "¬A ⋁ B", "(¬A ⋁ B) ⋀ A", "A ⋀ (¬A ⋁ B) ⋀ A"]
+        );
     }
 }

@@ -1,8 +1,8 @@
 use lib::axum::app::AppBuilder;
 use tower_http::cors::CorsLayer;
 
-use crate::routing::routes::*;
 use crate::routing::routes::index::not_found;
+use crate::routing::routes::*;
 
 mod config;
 mod expressions;

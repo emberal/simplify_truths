@@ -4,8 +4,9 @@ pub(crate) const fn ret_true() -> bool {
     true
 }
 
-
-pub(crate) fn deserialize_bool<'de, D: Deserializer<'de>>(deserializer: D) -> Result<bool, D::Error> {
+pub(crate) fn deserialize_bool<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<bool, D::Error> {
     let s: &str = Deserialize::deserialize(deserializer)?;
 
     match s {

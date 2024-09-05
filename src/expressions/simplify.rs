@@ -146,7 +146,8 @@ macro_rules! absorption_law_opposites {
 
 #[macro_export]
 macro_rules! distributive_law_atomic_vs_binary {
-    ($left:expr, $right:expr, $operations:expr, $op:pat, $func1:expr, $func2:expr) => {
+    ($left:expr, $right:expr, $operations:expr, $op:pat, $func1:expr, $func2:expr) => {{
+        let before = $func2($left.clone(), $right.clone());
         match ($left.as_ref(), $right.as_ref()) {
             (
                 Expression::Atomic(_),
@@ -155,19 +156,13 @@ macro_rules! distributive_law_atomic_vs_binary {
                     operator: $op,
                     right: right_right,
                 },
-            ) => {
-                let right_left = right_left.distributive_law($operations);
-                let right_right = right_right.distributive_law($operations);
-                let before = $func2($left.clone(), $right.clone());
-                let after = $func1(
-                    $func2($left.clone(), right_left),
-                    $func2($left.clone(), right_right),
-                );
-                if let Some(operation) = Operation::new(&before, &after, Law::DistributiveLaw) {
-                    $operations.push(operation);
-                }
-                after
-            }
+            ) => do_it(
+                &before,
+                &right_left,
+                &right_right,
+                |left, right| $func1($func2($left.clone(), left), $func2($left.clone(), right)),
+                $operations,
+            ),
             (
                 Expression::Binary {
                     left: left_left,
@@ -175,25 +170,36 @@ macro_rules! distributive_law_atomic_vs_binary {
                     right: left_right,
                 },
                 Expression::Atomic(_),
-            ) => {
-                let left_left = left_left.distributive_law($operations);
-                let left_right = left_right.distributive_law($operations);
-                let before = $func2($left.clone(), $right.clone());
-                let after = $func1(
-                    $func2(left_left, $right.clone()),
-                    $func2(left_right, $right.clone()),
-                );
-                if let Some(operation) = Operation::new(&before, &after, Law::DistributiveLaw) {
-                    $operations.push(operation);
-                }
-                after
-            }
+            ) => do_it(
+                &before,
+                &left_left,
+                &left_right,
+                |left, right| $func1($func2(left, $right.clone()), $func2(right, $right.clone())),
+                $operations,
+            ),
             (left, right) => $func2(
                 left.distributive_law($operations),
                 right.distributive_law($operations),
             ),
         }
-    };
+    }};
+}
+
+// TODO name it
+fn do_it(
+    before: &Expression,
+    left: &Expression,
+    right: &Expression,
+    after_callback: impl Fn(Expression, Expression) -> Expression,
+    operations: &mut Vec<Operation>,
+) -> Expression {
+    let right_left = left.distributive_law(operations);
+    let right_right = right.distributive_law(operations);
+    let after = after_callback(right_left, right_right);
+    if let Some(operation) = Operation::new(before, &after, Law::DistributiveLaw) {
+        operations.push(operation);
+    }
+    after
 }
 
 #[derive(Debug, Default)]
@@ -330,13 +336,13 @@ impl Expression {
             } => {
                 #[rustfmt::skip] // TODO refactor
                 let after = if Expression::eq(left, right, ignore_case)
-                    || (operator.is_and() && (left.is_and() && right.is_in(left) || right.is_or()  && left.is_in(right)))
-                    || (operator.is_or()  && (left.is_or()  && right.is_in(left) || right.is_and() && left.is_in(right)))
+                    || (operator.is_and() && (left.is_and() && right.is_in(left) || right.is_or() && left.is_in(right)))
+                    || (operator.is_or() && (left.is_or() && right.is_in(left) || right.is_and() && left.is_in(right)))
                 {
                     left
                 } else if
-                       (operator.is_and() && (left.is_or()  && right.is_in(left) || right.is_and() && left.is_in(right)))
-                    || (operator.is_or()  && (left.is_and() && right.is_in(left) || right.is_or()  && left.is_in(right)))
+                (operator.is_and() && (left.is_or() && right.is_in(left) || right.is_and() && left.is_in(right)))
+                    || (operator.is_or() && (left.is_and() && right.is_in(left) || right.is_or() && left.is_in(right)))
                 {
                     right
                 } else {
@@ -411,7 +417,7 @@ impl Expression {
     }
 
     // A ⋀ (B ⋀ C) <=> (A ⋀ B) ⋀ C
-    fn associative_law(&self, operations: &mut Vec<Operation>) -> Self {
+    fn _associative_law(&self, _operations: &mut Vec<Operation>) -> Self {
         todo!("? | Associative law: (a ⋀ b) ⋀ c == a ⋀ (b ⋀ c) and (a ⋁ b) ⋁ c == a ⋁ (b ⋁ c)")
     }
 
@@ -423,28 +429,99 @@ impl Expression {
                 operator: BinaryOperator::And,
                 right,
             } => {
-                distributive_law_atomic_vs_binary!(
-                    left,
-                    right,
-                    operations,
-                    BinaryOperator::Or,
-                    or,
-                    and
-                )
+                let before = and(left.clone(), right.clone());
+                match (left.as_ref(), right.as_ref()) {
+                    (
+                        Expression::Atomic(_),
+                        Expression::Binary {
+                            left: right_left,
+                            operator: BinaryOperator::Or,
+                            right: right_right,
+                        },
+                    ) => do_it(
+                        &before,
+                        right_left,
+                        right_right,
+                        |inner_left, inner_right| {
+                            or(
+                                and(left.clone(), inner_left),
+                                and(left.clone(), inner_right),
+                            )
+                        },
+                        operations,
+                    ),
+                    (
+                        Expression::Binary {
+                            left: left_left,
+                            operator: BinaryOperator::Or,
+                            right: left_right,
+                        },
+                        Expression::Atomic(_),
+                    ) => do_it(
+                        &before,
+                        left_left,
+                        left_right,
+                        |inner_left, inner_right| {
+                            or(
+                                and(inner_left, right.clone()),
+                                and(inner_right, right.clone()),
+                            )
+                        },
+                        operations,
+                    ),
+                    (left, right) => and(
+                        left.distributive_law(operations),
+                        right.distributive_law(operations),
+                    ),
+                }
             }
             Expression::Binary {
                 left,
                 operator: BinaryOperator::Or,
                 right,
             } => {
-                distributive_law_atomic_vs_binary!(
-                    left,
-                    right,
-                    operations,
-                    BinaryOperator::And,
-                    and,
-                    or
-                )
+                let before = or(left.clone(), right.clone());
+                match (left.as_ref(), right.as_ref()) {
+                    (
+                        Expression::Atomic(_),
+                        Expression::Binary {
+                            left: right_left,
+                            operator: BinaryOperator::And,
+                            right: right_right,
+                        },
+                    ) => do_it(
+                        &before,
+                        right_left,
+                        right_right,
+                        |inner_left, inner_right| {
+                            and(or(left.clone(), inner_left), or(left.clone(), inner_right))
+                        },
+                        operations,
+                    ),
+                    (
+                        Expression::Binary {
+                            left: left_left,
+                            operator: BinaryOperator::And,
+                            right: left_right,
+                        },
+                        Expression::Atomic(_),
+                    ) => do_it(
+                        &before,
+                        left_left,
+                        left_right,
+                        |inner_left, inner_right| {
+                            and(
+                                or(inner_left, right.clone()),
+                                or(inner_right, right.clone()),
+                            )
+                        },
+                        operations,
+                    ),
+                    (left, right) => or(
+                        left.distributive_law(operations),
+                        right.distributive_law(operations),
+                    ),
+                }
             }
             Expression::Binary {
                 left,
@@ -460,7 +537,7 @@ impl Expression {
         }
     }
 
-    fn commutative_law(&self, operations: &mut Vec<Operation>) -> Self {
+    fn commutative_law(&self, _operations: &mut Vec<Operation>) -> Self {
         todo!("? | Order of operands does not matter in AND and OR operations.")
     }
 }
@@ -705,7 +782,7 @@ mod tests {
             expression,
             or(
                 and(not(atomic("a")), not(atomic("b"))),
-                and(not(atomic("c")), not(atomic("d")))
+                and(not(atomic("c")), not(atomic("d"))),
             )
         ); // ¬(a ⋁ b) ⋀ ¬(c ⋁ d) == (¬a ⋀ ¬b) ⋁ (¬c ⋀ ¬d)
         assert_eq!(operations.len(), 3);

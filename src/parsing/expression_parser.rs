@@ -100,7 +100,7 @@ fn implication_expression<'a>(
 }
 
 fn not_expression(input: &str) -> IResult<&str, Expression> {
-    preceded(char('!'), left_hand_side)(input).map(|(remaining, right)| (remaining, right.not()))
+    map(preceded(char('!'), left_hand_side), Expression::not)(input)
 }
 
 fn value(input: &str) -> IResult<&str, Expression> {

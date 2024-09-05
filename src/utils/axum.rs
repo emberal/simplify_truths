@@ -19,7 +19,11 @@ macro_rules! load_html {
 #[cfg(debug_assertions)]
 macro_rules! absolute_path {
     ($filename:literal) => {
-        concat!(env!("CARGO_MANIFEST_DIR"), "/src/resources/static/", $filename)
+        concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/src/resources/static/",
+            $filename
+        )
     };
 }
 

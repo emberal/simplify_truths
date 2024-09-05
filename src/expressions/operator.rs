@@ -9,6 +9,7 @@ pub enum BinaryOperator {
 }
 
 impl BinaryOperator {
+    #[must_use]
     pub fn eval(&self, left: bool, right: bool) -> bool {
         match self {
             BinaryOperator::And => left && right,
@@ -17,10 +18,12 @@ impl BinaryOperator {
         }
     }
 
+    #[must_use]
     pub fn is_and(&self) -> bool {
         matches!(self, BinaryOperator::And)
     }
 
+    #[must_use]
     pub fn is_or(&self) -> bool {
         matches!(self, BinaryOperator::Or)
     }

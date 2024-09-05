@@ -1,5 +1,5 @@
-use axum::Json;
 use axum::response::{IntoResponse, Response};
+use axum::Json;
 use serde::Serialize;
 
 #[derive(Serialize, Default)]
